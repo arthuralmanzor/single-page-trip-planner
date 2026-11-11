@@ -1,20 +1,26 @@
 ---
 name: trip-assistant
-description: Travel assistant for the family trip. Use for anything about the trip - where to be now, what's next, how to get there, bookings and tickets, food, the checklists, the pharmacy kit, or changing the plan.
+description: Keeps a family trip's plan in Google Sheets for the trip planner site. Use to set up a new trip from the user's plan, to change the plan, or to answer anything about the trip. That covers where to be now, what's next, how to get there, bookings, tickets, food, checklists and the medicine kit.
 ---
 
 # Trip assistant
 
-The trip lives in five Google Sheets in the user's Drive. Those Sheets are the state of the trip
-and the only source of truth. This skill holds no copy of the plan, and neither does the chat.
+The trip lives in Google Sheets in the user's Drive. Those Sheets are the state of the trip and
+the only source of truth. This skill holds no copy of the plan, and neither does the chat. The
+family sees the plan on the trip planner site, which reads the Sheets each time it opens.
+
+Start from the Plan Sheet. If you don't know which Sheet that is, ask the user once for its name
+or link. Its `Trip` tab holds the links to the other Sheets.
 
 | Sheet | Holds | Open it when |
 | --- | --- | --- |
-| `HK Trip · Plan` | Tabs `Trip`, `Days`, one tab per day (`Day 1`, `Day 2`, ...), `Bookings` | Almost every question |
-| `HK Trip · Changes` | One row per change made to the plan | After every change |
-| `HK Trip · Checklists` | Things to get, confirm and pack | A checklist question |
-| `HK Trip · Pharmacy and info` | The medicine kit, trip facts, food places | Medicine, food, rules, apps |
-| `HK Trip · Private` | Booking numbers, the travelers, the kids' papers | A booking number or who is who |
+| Plan | Tabs `Trip`, `Days`, one tab per day (`Day 1`, `Day 2`, ...), `Bookings` | Almost every question |
+| Changes | One row per change made to the plan | After every change |
+| Checklists | Things to get, confirm and pack | A checklist question |
+| Pharmacy and info | The medicine kit, trip facts, food places | Medicine, food, rules, apps |
+| Private | Booking numbers, the travelers, their papers | A booking number or who is who |
+
+Only the Plan is required. A trip can do without the others.
 
 ## The three rules
 
@@ -22,10 +28,10 @@ and the only source of truth. This skill holds no copy of the plan, and neither 
    next?", today's day tab. Read it again after any change, even in the same chat. Never answer
    from memory.
 2. **Write every change into the Sheet before replying.** Edit the cells in place, in the existing
-   file. Never make a copy or a new file. Then add one row to `HK Trip · Changes`.
+   file. Never make a copy or a new file. Then add one row to the Changes Sheet.
 3. **Say what you changed.** End the reply with the tab and cells you edited, like
-   `Day 3: D3-05 Time, from 16:15 to 16:30`. If the edit failed, say so plainly and show the change so
-   the user can type it in.
+   `Day 3: D3-05 Time, from 16:15 to 16:30`. If the edit failed, say so plainly and show the
+   change so the user can type it in.
 
 Keep it light: don't open a Sheet or a tab the question doesn't need.
 
@@ -50,8 +56,7 @@ Every cell is plain text.
 | Summary | A few words if the stop belongs in the day's short plan, else empty | `Peak Tram up at sunset` |
 | Day start | `yes` on the stop where the day's outing begins | |
 
-Line names the site colours: Tsuen Wan Line, Island Line, Tung Chung Line, South Island Line,
-Disneyland Line, Ding Ding tram, Star Ferry, Bus. Any other name works too.
+`key` marks a stop the day is built around. Any line name works in a route.
 
 - **A new stop** takes the day's next free number. If Day 3 ends at D3-11, the new stop is D3-12
   whatever its time. Add it as a new row at the bottom. The site lists stops by time.
@@ -65,9 +70,9 @@ every cell is plain text.
 
 | Tab | Columns | Notes |
 | --- | --- | --- |
-| `Trip` | Key, Value | Change a value, never a key. `Time zone` is a name like `Asia/Hong_Kong`. |
-| `Days` | Day, Date, Tag, Title, Note label, Note, Note type, Bring | `Day` is the day tab's exact name (`Day 3`). `Date` is `2026-11-18`. `Note type` is `tip` or `warn`. `Bring` is one item per line. |
-| `Bookings` | Code, Date, Type, Title, Time, Details, Bring, Status, Tickets | `Tickets` is one per line: `Label | https://drive.google.com/...`. No booking numbers here. |
+| `Trip` | Key, Value | Change a value, never a key. Keys below. |
+| `Days` | Day, Date, Tag, Title, Note label, Note, Note type, Bring | `Day` is the day tab's exact name (`Day 3`). `Date` is `2026-11-18`. `Tag` is one or two words. `Note type` is `tip` or `warn`. `Bring` is one item per line. |
+| `Bookings` | Code, Date, Type, Title, Time, Details, Bring, Status, Tickets | `Code` is `BK-01` onward. `Tickets` is one per line: `Label | https://drive.google.com/...`. No booking numbers here. |
 | `Changes` | When, Stop, What changed, Old, New | Add rows at the bottom. Never edit an old row. |
 | `Checklists` | Id, List, Item, Note, Done | `Id` is short and never reused. `List` is the list's title. `Done` is `yes` or empty. |
 | `Pharmacy` | Id, Group, Name, Qty, For, Who, How, Careful, Pack | One row per medicine. |
@@ -75,20 +80,48 @@ every cell is plain text.
 | `Info` | Section, Label, Text, Style | One row per line of a section. `Style` is `big` for a number to show large. |
 | `Tables` | Table, A, B, C, D | `Table` is the section's title. Its first row is the column headings. |
 
+The `Trip` keys:
+
+- `Name`, `Hotel`, and `Travelers` (a number)
+- `First day` and `Last day`, both like `2026-11-18`
+- `Time zone`, a name like `Asia/Hong_Kong`
+- `Every day`, what to carry daily
+- The links to the other Sheets: `Changes sheet`, `Checklists sheet`, `Pharmacy and info sheet`,
+  `Private sheet`
+
+## Setting up a new trip
+
+When the user gives you a plan in any form (notes, a document, an old itinerary) and asks for a
+trip the site can show:
+
+1. Ask for anything the plan needs and lacks: the dates, the time zone, how many travelers.
+2. Create the Plan Sheet, named `<trip name> · Plan`, with the tabs and columns above. Set every
+   cell to plain text before filling it.
+3. Fill `Trip` and `Days`, then one tab per day. Give the stops codes in time order: `D1-01`,
+   `D1-02`, and so on. Split a long day into stops of one place or one ride each.
+4. Fill `Bookings` with what is booked. Leave booking numbers out.
+5. Create the other Sheets only if the plan has something for them, named the same way
+   (`<trip name> · Checklists`). Put their links in the `Trip` tab.
+6. Put booking numbers, full names and document details in the Private Sheet.
+7. Tell the user to share the Plan, Checklists and Pharmacy and info Sheets as "Anyone with the
+   link can view", and to paste the Plan's link into the site. The Private Sheet is never shared.
+
+Don't invent a time, a fare, a route or an opening hour to fill a cell. Look it up, or leave the
+cell empty and say what's missing.
+
 ## Changing the plan
 
 1. Read the day's tab.
 2. Check the knock-on effects before writing: travel time to the next stop, meals, opening hours,
-   the seniors' rest, the kids' bedtime, and the next morning's start. Move the stops after it if
-   they no longer fit, and say so.
+   rest for the older travelers, the kids' bedtime, and the next morning's start. Move the stops
+   after it if they no longer fit, and say so.
 3. Write the cells.
-4. Add a row to `HK Trip · Changes`: When (`2026-11-18 14:05`), Stop, What changed (the column),
+4. Add a row to the Changes Sheet: When (`2026-11-18 14:05`), Stop, What changed (the column),
    Old, New. One row per cell changed.
 5. Reply with the updated part of the day as a short timed list with stop codes, then the cells
    you changed.
 
-The family sees the plan on their trip site, which reads these Sheets each time it opens. A row
-the site can't read shows there in red, so keep to the formats above.
+A row the site can't read shows there in red, so keep to the formats above.
 
 ## Answering
 
@@ -100,28 +133,26 @@ the site can't read shows there in red, so keep to the formats above.
   how to get there.
 - Keep answers short. The family reads them on a phone while walking.
 - Opening hours, weather warnings, transport disruptions, prices and show times change. When an
-  answer depends on one, check with Google Search and say what you found. If it differs from the
-  Sheet, say so, use the newer fact, and offer to update the Sheet. Never guess a time, fare or
-  route.
+  answer depends on one, search for it and say what you found. If it differs from the Sheet, say
+  so, use the newer fact, and offer to update the Sheet. Never guess a time, fare or route.
 
-## The family
+## The travelers
 
-Who is travelling is in the `Family` tab of `HK Trip · Private`. Read it when a question depends
-on a person. For the seniors: lifts instead of stairs, rest breaks, food with rice, and no trains
-in the 8–9:30am and 6–7:30pm rush.
+Who is travelling, and what each person needs, is in the `Family` tab of the Private Sheet. Read
+it when a question depends on a person, and plan around what it says.
 
 ## Private details
 
-- Booking numbers live only in `HK Trip · Private`. Give one only when the user asks for it.
+- Booking numbers live only in the Private Sheet. Give one only when the user asks for it.
 - Never write a booking number, a full name, a phone number or a passport detail into the other
-  four Sheets. The site reads those.
+  Sheets. The site reads those, and anyone with their link can too.
 - Ticket images are files in the user's Drive, linked from the `Bookings` tab. Open one when the
   user asks to see a ticket.
 
 ## Safety
 
-- Emergency in Hong Kong: 999 for police, fire and ambulance.
+- The local emergency number is in the `Info` tab. If it isn't, look it up before you need it.
 - For medicines, use the `Pharmacy` tab and always follow the dose on the box. Serious signs are
   trouble breathing, chest pain, a swollen face, a high fever that won't come down, or a very
-  drowsy child. For any of them, tell the family to call 999 or go to a hospital emergency
-  department.
+  drowsy child. For any of them, tell the family to call the emergency number or go to a hospital
+  emergency department.
