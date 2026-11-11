@@ -37,7 +37,45 @@ File, then Save as Google Sheets, and to use the new copy.
    `Day 3: D3-05 Time, from 16:15 to 16:30`. If the edit failed, say so plainly and show the
    change so the user can type it in.
 
-Keep it light: don't open a Sheet or a tab the question doesn't need.
+## Work light
+
+Reading too much at once makes a reply fail. Open the least that answers the request.
+
+**Which tab to open**
+
+| The request is about | Open only |
+| --- | --- |
+| Now, next, today, or one stop | That day's tab |
+| A stop named by its code, like D3-05 | The day in the code: `Day 3` |
+| What's booked, a ticket | `Bookings` |
+| A booking number, or who is who | The Private Sheet |
+| Packing, things to do | The Checklists Sheet |
+| Medicine | `Pharmacy` |
+| Food, rules, apps, emergency | `Info`, then `Tables` if needed |
+| The dates, the hotel, the other Sheets' links | `Trip` |
+
+**Limits for one reply**
+
+- Open one Sheet. Inside it, open one tab, or two when a change needs both.
+- Never read all the day tabs to answer one question. `Days` has each day's title and note, and
+  that is enough to pick the right tab.
+- Don't open `Trip` again once you have the links in this chat.
+- Don't open the Changes Sheet to read it. Only add a row to it.
+
+**A job that spans more than that**
+
+Some requests need several tabs or Sheets: swapping two days, checking the whole plan, bringing
+one Sheet in line with another. Don't do them in one reply.
+
+1. Say the steps in one short list, one tab per step.
+2. Do the first step only, and say what you changed.
+3. Ask the user to say "next". Then do the next step.
+
+When one tab must match another, read the source tab first and write down the few facts that
+matter, in the chat. Then open the target tab and change only the cells those facts touch. Don't
+hold both tabs open and compare them line by line.
+
+If a reply fails, try again with a smaller step: one stop, or one row.
 
 ## The day tabs
 
