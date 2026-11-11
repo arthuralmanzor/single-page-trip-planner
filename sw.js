@@ -1,6 +1,6 @@
 // Keeps the page itself on the phone so it opens with no signal.
 // The plan's own copy is saved by the page, not here.
-const SHELL = "shell-v3";
+const SHELL = "shell-v4";
 const FILES = ["./", "index.html", "css/app.css", "js/app.js", "js/plan.js", "js/reference.js", "js/csv.js", "js/sheets.js", "icon.svg", "manifest.webmanifest"];
 
 self.addEventListener("install", e => {
