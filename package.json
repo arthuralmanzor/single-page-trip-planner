@@ -2,5 +2,5 @@
   "name": "single-page-trip-planner",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node --test" }
+  "scripts": { "test": "for f in js/*.js sw.js; do node --check $f || exit 1; done && node --test" }
 }
