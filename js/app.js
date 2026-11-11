@@ -91,6 +91,15 @@ function tixHTML(codes) {
   const list = ticketsFor(codes);
   return list.length ? `<div class="tixlinks">${list.map(t => `<a class="btn" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">Open ticket · ${esc(t.label)}</a>`).join("")}</div>` : "";
 }
+// What a stop says under its name. The day's plan and the now card both show it.
+const stopHTML = s => [
+  etaHTML(s), legsHTML(s),
+  s.details ? `<p>${esc(s.details)}</p>` : "",
+  mapHTML(s.places),
+  s.wait ? `<div class="wait"><span class="lbl">Expect</span><span>${esc(s.wait)}</span></div>` : "",
+  s.tip ? `<div class="tip-inline">${esc(s.tip)}</div>` : "",
+  tixHTML(s.bookings),
+].join("");
 
 /* ---------- Itinerary ---------- */
 let selDay = store.get("trip-day");
@@ -106,12 +115,7 @@ function timelineHTML(d) {
       <span class="time">${esc(s.time)}<span class="code">${esc(s.code)}</span></span><span class="rail"><span class="node"></span></span>
       <div class="body"><span class="state" aria-live="polite"></span>${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>
         ${s.problems.map(p => `<div class="badnote">Fix in the Sheet: ${esc(p)}</div>`).join("")}
-        ${etaHTML(s)}${legsHTML(s)}
-        ${s.details ? `<p>${esc(s.details)}</p>` : ""}
-        ${mapHTML(s.places)}
-        ${s.wait ? `<div class="wait"><span class="lbl">Expect</span><span>${esc(s.wait)}</span></div>` : ""}
-        ${s.tip ? `<div class="tip-inline">${esc(s.tip)}</div>` : ""}
-        ${tixHTML(s.bookings)}
+        ${stopHTML(s)}
       </div></li>`).join("")}</ol>`;
 }
 let packed = store.get("trip-bring") || {};
@@ -191,9 +195,10 @@ function renderNow(st = tripState()) {
     const isFresh = fresh(st), fd = focusDay(st);
     const sameDay = next && localDate(next.t) === localDate(ms);
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
+    const stop = stopHTML(cur.s);
     box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span></div>
       ${isFresh ? `<div class="now-cur"><span class="mono code">${esc(cur.s.code)} · ${esc(cur.s.time)}</span><h3 class="now-title">${esc(cur.s.title)}</h3></div>
-      ${etaHTML(cur.s)}${legsHTML(cur.s)}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
+      ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
       ${next && isFresh ? `<div class="now-bar" role="progressbar" aria-label="Time until the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}
       ${next ? `<div class="now-next">
