@@ -80,7 +80,7 @@ const etaHTML = s => s.arrives ? `<div class="eta"><span class="lbl">Leave</span
 function bannerHTML(b) { return b ? `<div class="callout ${b.type === "warn" ? "warn" : "tip"}">${b.label ? `<span class="ic">${esc(b.label)}</span>` : ""}<span>${esc(b.text)}</span></div>` : ""; }
 function mapHTML(places) {
   if (!places.length) return "";
-  return `<div class="maps">${places.map(p => `<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(p.search)}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.750 7-13a7 7 0 0 0-7-7zm0 9.500a2.500 2.500 0 1 1 0-5 2.500 2.500 0 0 1 0 5z"/></svg><span>${esc(p.label)}</span></a>`).join("")}</div>`;
+  return `<div class="maps">${places.map(p => `<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(p.search)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.750 7-13a7 7 0 0 0-7-7zm0 9.500a2.500 2.500 0 1 1 0-5 2.500 2.500 0 0 1 0 5z"/></svg><span>${esc(p.label)}</span></a>`).join("")}</div>`;
 }
 function ticketsFor(codes) {
   const seen = new Set(), out = [];
@@ -89,7 +89,7 @@ function ticketsFor(codes) {
 }
 function tixHTML(codes) {
   const list = ticketsFor(codes);
-  return list.length ? `<div class="tixlinks">${list.map(t => `<a class="btn" href="${esc(t.url)}" target="_blank" rel="noopener">Open ticket · ${esc(t.label)}</a>`).join("")}</div>` : "";
+  return list.length ? `<div class="tixlinks">${list.map(t => `<a class="btn" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">Open ticket · ${esc(t.label)}</a>`).join("")}</div>` : "";
 }
 
 /* ---------- Itinerary ---------- */
