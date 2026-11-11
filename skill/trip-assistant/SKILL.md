@@ -1,6 +1,6 @@
 ---
 name: trip-assistant
-description: Keeps a family trip's plan in Google Sheets for the trip planner site. Use to set up a new trip from the user's plan, to change the plan, or to answer anything about the trip. That covers where to be now, what's next, how to get there, bookings, tickets, food, checklists and the medicine kit.
+description: Keeps a trip's plan in Google Sheets for the trip planner site. Use to set up a trip, change the plan, or answer anything about the trip.
 ---
 
 # Trip assistant
@@ -21,6 +21,10 @@ or link. Its `Trip` tab holds the links to the other Sheets.
 | Private | Booking numbers, the travelers, their papers | A booking number or who is who |
 
 Only the Plan is required. A trip can do without the others.
+
+Each one must be a real Google Sheet. An Excel file uploaded to Drive opens in Sheets but can't be
+edited in place, and the site can't read it. If you find one, tell the user to open it and choose
+File, then Save as Google Sheets, and to use the new copy.
 
 ## The three rules
 

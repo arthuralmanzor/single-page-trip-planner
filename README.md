@@ -23,6 +23,10 @@ it on that phone, with a copy of the plan for when there's no signal.
 3. You share the Plan Sheet as "Anyone with the link can view" and paste its link into the site.
 4. From then on you ask for changes in plain words. The AI edits the Sheet and logs what changed.
 
+The Sheets must be real Google Sheets. If you upload a spreadsheet you already have, it stays an
+Excel file: open it and choose File, then Save as Google Sheets, and use the new copy. An Excel
+file still shows a green ".XLSX" badge beside its name.
+
 ## Give your AI the skill
 
 The skill is one file, `SKILL.md`. The AI needs it, and it needs to be able to edit Google Sheets
@@ -33,6 +37,9 @@ in your Drive.
 1. Download the `skill/trip-assistant` folder from this repo.
 2. In the sidebar click Customize, then Skills, then Create, then Upload.
 3. Pick the folder and click Create.
+
+If it won't save, ask in a Gemini chat instead: "Create a skill based on these instructions:",
+followed by the contents of `SKILL.md`.
 
 The skill then works in the Gemini phone app too. Type `/` in a chat to pick it, or just ask
 about your trip.
