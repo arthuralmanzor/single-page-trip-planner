@@ -23,6 +23,26 @@ it on that phone, with a copy of the plan for when there's no signal.
 3. You share the Plan Sheet as "Anyone with the link can view" and paste its link into the site.
 4. From then on you ask for changes in plain words. The AI edits the Sheet and logs what changed.
 
+## The Sheets
+
+A trip is up to five Google Sheets. Only the Plan is required. Name each one after the trip, so
+the AI can find it: `HK Trip · Plan`, `HK Trip · Checklists`, and so on.
+
+| Sheet | Holds | Share it? |
+| --- | --- | --- |
+| Plan | The days, the stops and what's booked | Anyone with the link can view |
+| Checklists | Things to get, confirm and pack | Anyone with the link can view |
+| Pharmacy and info | The medicine kit, trip facts, food places | Anyone with the link can view |
+| Changes | A log of every change the AI made | No |
+| Private | Booking numbers, full names, document details | Never |
+
+To share one, open it, click Share, and under General access pick "Anyone with the link", as
+Viewer. The page reads the three shared Sheets. Your AI, signed in as you, reads and edits all
+five.
+
+The Plan's `Trip` tab has a row for each of the other Sheets' links. That's how the page and the
+AI find them, so you only ever paste the Plan's link into the site.
+
 The Sheets must be real Google Sheets. If you upload a spreadsheet you already have, it stays an
 Excel file: open it and choose File, then Save as Google Sheets, and use the new copy. An Excel
 file still shows a green ".XLSX" badge beside its name.
