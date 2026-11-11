@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trip planner</title>
+<meta name="description" content="A trip plan that follows the clock, read from your own Google Sheet.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0d6b5e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="ticket">
+  <div class="wrap">
+    <div class="trow">
+      <div class="route"><span id="tripName">Trip planner</span><small id="tripSub"></small></div>
+      <button type="button" class="countdown" id="countdown" disabled hidden></button>
+    </div>
+    <nav class="tabs" aria-label="Sections" id="tabs" hidden>
+      <a href="#itinerary" data-view="itinerary">Itinerary</a>
+      <a href="#checklists" data-view="checklists" hidden>Checklists</a>
+      <a href="#pharmacy" data-view="pharmacy" hidden>Pharmacy</a>
+      <a href="#bookings" data-view="bookings" hidden>Bookings</a>
+      <a href="#info" data-view="info" hidden>Info &amp; food</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- SETUP: shown until this phone has a Plan Sheet link -->
+  <section class="view" id="v-setup" hidden>
+    <div class="dayhead"><span class="kicker">First time on this phone</span><h2>Open your plan</h2></div>
+    <form class="card" id="setupForm">
+      <label class="fl" for="setupLink">Link to your Plan Sheet
+        <input type="url" id="setupLink" inputmode="url" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/…" required>
+      </label>
+      <p class="lede">In Google Sheets, tap Share, set it to “Anyone with the link can view”, and copy the link. It's saved on this phone only.</p>
+      <span class="saved" id="setupMsg" role="status"></span>
+      <button class="btn primary" type="submit" id="setupGo" style="align-self:flex-start">Open the plan</button>
+    </form>
+  </section>
+
+  <p class="status" id="syncStatus" hidden><span class="dot"></span><span id="syncText">Loading…</span><button type="button" class="btn ghost" id="refresh">Refresh</button></p>
+  <div class="callout warn problems" id="problems" hidden></div>
+
+  <!-- ITINERARY -->
+  <section class="view" id="v-itinerary" hidden>
+    <section class="nowcard" id="nowCard" aria-label="Where you should be now">
+      <div id="nowBody"></div>
+      <details class="sim" id="simBox"><summary>Preview another moment</summary>
+        <div class="simrow">
+          <label for="simDay">Day<select id="simDay"></select></label>
+          <label for="simTime">Time<input type="time" id="simTime" value="10:20"></label>
+          <button type="button" class="btn" id="simGo">Preview</button>
+          <button type="button" class="btn ghost" id="simLive" hidden>Back to live</button>
+        </div>
+      </details>
+    </section>
+    <div class="days" id="dayStrip" role="group" aria-label="Choose a day"></div>
+    <div id="dayView" class="view" style="display:flex;flex-direction:column;gap:18px"></div>
+  </section>
+
+  <!-- CHECKLISTS -->
+  <section class="view" id="v-checklists" hidden>
+    <div class="dayhead"><span class="kicker">Ticks stay on this phone</span><h2>Checklists</h2></div>
+    <div class="overall" id="overall"></div>
+    <div id="checkGroups" class="view"></div>
+  </section>
+
+  <!-- PHARMACY -->
+  <section class="view" id="v-pharmacy" hidden>
+    <div class="dayhead"><span class="kicker">Ticks stay on this phone</span><h2>Pharmacy kit</h2></div>
+    <div class="pharm-bar"><span class="meter" id="pharmMeter"></span><button type="button" class="btn" id="pharmToggle" aria-pressed="false">Show the pharmacist</button></div>
+    <div id="pharmBody" style="display:flex;flex-direction:column;gap:18px"></div>
+  </section>
+
+  <!-- BOOKINGS -->
+  <section class="view" id="v-bookings" hidden>
+    <div class="dayhead"><span class="kicker">What's booked, day by day</span><h2>Bookings</h2></div>
+    <div class="callout tip"><span class="ic">NUMBERS</span><span>Booking numbers aren't kept here. Open the ticket, or ask Gemini for the number.</span></div>
+    <div id="bkList" class="view"></div>
+  </section>
+
+  <!-- INFO -->
+  <section class="view" id="v-info" hidden>
+    <div class="dayhead"><span class="kicker">Good to know</span><h2>Info &amp; food</h2></div>
+    <div id="infoBody" style="display:flex;flex-direction:column;gap:18px"></div>
+  </section>
+
+  <p class="fullfoot" id="foot" hidden>This page reads your Plan Sheet. To change the plan, ask Gemini or edit the Sheet. <button type="button" class="linkbtn" id="forget">Use a different Sheet</button></p>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

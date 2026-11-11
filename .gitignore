@@ -1,0 +1,5 @@
+build/
+screenshots/
+skill/*/private/
+node_modules/
+.DS_Store
