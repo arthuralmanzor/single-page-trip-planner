@@ -8,7 +8,7 @@ bring.
 **Plan**:
 The current version of every Day and Stop. The only source of truth for where the family should be
 and when.
-_Avoid_: state, trip book
+_Avoid_: itinerary data, trip book
 
 **Day**:
 One date of the trip, with a title and a pace note. Day 1 also holds the travel that leads into it.

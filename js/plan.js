@@ -15,6 +15,12 @@ const pad2 = n => String(n).padStart(2, "0");
 const lines = s => String(s || "").split(/\n/).map(x => x.trim()).filter(Boolean);
 
 // Milliseconds for a wall-clock time in the trip's time zone.
+export const midday = (date, tz) => zoned(date, 12, 0, tz);
+
+function knownZone(tz) {
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return true; } catch (e) { return false; }
+}
+
 function zoned(date, hh, mm, tz) {
   const utc = Date.parse(`${date}T${pad2(hh)}:${pad2(mm)}:00Z`);
   if (Number.isNaN(utc)) return null;
@@ -55,7 +61,7 @@ function readLeg(text) {
   const name = m ? m[1].trim() : "Route";
   const [from, to = ""] = (m ? m[2] : text).split("→").map(x => x.trim());
   return {
-    line: LINES[name.toLowerCase()] || "",
+    line: (Object.entries(LINES).find(([known]) => new RegExp(`\\b${known}\\b`, "i").test(name)) || [])[1] || "",
     name,
     from: to ? from : "",
     to: to || from,
@@ -79,7 +85,7 @@ function readTrip(text) {
     name: kv["Name"] || "Trip",
     firstDay: kv["First day"] || "",
     lastDay: kv["Last day"] || "",
-    timeZone: kv["Time zone"] || "UTC",
+    timeZone: kv["Time zone"] || "",
     travelers: kv["Travelers"] || "",
     hotel: kv["Hotel"] || "",
     everyDay: kv["Every day"] || "",
@@ -87,7 +93,7 @@ function readTrip(text) {
   };
 }
 
-function readStop(r, day, tz, seen) {
+function readStop(r, day, tz, seen, booked) {
   const problems = [];
   const code = r.Code;
   const m = /^D(\d+)-(\d+)$/.exec(code);
@@ -105,6 +111,8 @@ function readStop(r, day, tz, seen) {
     problems.push(`The kind "${r.Kind}" isn't one of ${KINDS.join(", ")}.`);
     kind = "visit";
   }
+  const bookings = (r.Bookings || "").split(/[,\n]/).map(x => x.trim()).filter(Boolean);
+  if (booked.size) for (const b of bookings) if (!booked.has(b)) problems.push(`The booking ${b} isn't in the Bookings tab.`);
   return {
     code,
     time: time ? time.shown : r.Time || "",
@@ -118,14 +126,14 @@ function readStop(r, day, tz, seen) {
     wait: r.Wait || "",
     tip: r.Tip || "",
     places: lines(r.Places).map(readPlace),
-    bookings: (r.Bookings || "").split(/[,\n]/).map(x => x.trim()).filter(Boolean),
+    bookings,
     summary: r.Summary || "",
     dayStart: /^(yes|y|true|x)$/i.test(r["Day start"] || ""),
     problems,
   };
 }
 
-function readStops(text, day, tz, problems) {
+function readStops(text, day, tz, problems, booked) {
   if (text == null) {
     problems.push({ where: day.name, text: `The Sheet has no ${day.name} tab.` });
     return [];
@@ -136,7 +144,7 @@ function readStops(text, day, tz, problems) {
     return [];
   }
   const seen = new Set();
-  const stops = t.rows.map(r => readStop(r, day, tz, seen));
+  const stops = t.rows.map(r => readStop(r, day, tz, seen, booked));
   // A stop with no readable time keeps its place after the row above it.
   let last = -Infinity;
   const order = stops.map((s, i) => { if (s.at != null) last = s.at; return { s, key: s.at ?? last, i }; });
@@ -165,16 +173,24 @@ function readBookings(text) {
 export function readPlan(tabs) {
   const problems = [];
   const trip = readTrip(tabs.Trip);
+  if (!knownZone(trip.timeZone || "-")) {
+    problems.push({ where: "Trip", text: trip.timeZone
+      ? `The time zone "${trip.timeZone}" isn't a name like Asia/Hong_Kong, so times are shown in UTC.`
+      : "The Trip tab has no Time zone row, so times are shown in UTC." });
+    trip.timeZone = "UTC";
+  }
   const tz = trip.timeZone;
+  const bookings = readBookings(tabs.Bookings);
+  const booked = new Set(bookings.map(b => b.code));
   const dayTable = table(tabs.Days);
   if (dayTable.keys[0] !== DAYS_HEAD) {
     problems.push({ where: "Days", text: `The Days tab is missing or doesn't start with a ${DAYS_HEAD} column.` });
-    return { trip, days: [], bookings: [], problems };
+    return { trip, days: [], bookings, problems };
   }
   const days = [];
   for (const r of dayTable.rows) {
     const n = +(/\d+/.exec(r.Day) || [0])[0];
-    const noon = /^\d{4}-\d{2}-\d{2}$/.test(r.Date) ? zoned(r.Date, 12, 0, tz) : null;
+    const noon = /^\d{4}-\d{2}-\d{2}$/.test(r.Date) ? midday(r.Date, tz) : null;
     if (noon == null) {
       problems.push({ where: "Days", text: `${r.Day} has the date "${r.Date}", which isn't in the 2026-11-18 form.` });
       continue;
@@ -188,10 +204,10 @@ export function readPlan(tabs) {
       bring: lines(r.Bring),
       stops: [],
     };
-    day.stops = readStops(tabs[r.Day], day, tz, problems);
+    day.stops = readStops(tabs[r.Day], day, tz, problems, booked);
     days.push(day);
   }
-  return { trip, days, bookings: readBookings(tabs.Bookings), problems };
+  return { trip, days, bookings, problems };
 }
 
 // The tab names the Plan needs, once the Days tab is known.

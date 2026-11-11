@@ -1,4 +1,4 @@
-import { readPlan, dayTabs } from "./plan.js";
+import { readPlan, dayTabs, midday } from "./plan.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs } from "./sheets.js";
 
@@ -23,7 +23,7 @@ const fmtDow = ms => new Date(ms).toLocaleDateString("en-US", { weekday: "short"
 const fmtDate = ms => new Date(ms).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: TZ });
 const fmtMonthDay = ms => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: TZ });
 const localDate = ms => new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ });
-const noon = date => Date.parse(date + "T04:00:00Z"); // midday in most of Asia, and the right date everywhere
+const noon = date => midday(date, TZ);
 function until(ms) {
   const m = Math.round(ms / 60000);
   if (m < 1) return "now";
@@ -36,7 +36,6 @@ function until(ms) {
 function useTrip(raw) {
   const plan = readPlan(raw.plan);
   TRIP = plan.trip; TZ = TRIP.timeZone; DAYS = plan.days; BOOKINGS = plan.bookings; PROBLEMS = plan.problems;
-  try { fmtClock(0); } catch (e) { PROBLEMS.push({ where: "Trip", text: `The time zone "${TZ}" isn't one this phone knows.` }); TZ = "UTC"; }
   CHECKS = readChecklists(raw.checklists && raw.checklists.Checklists);
   const ref = raw.reference || {};
   PHARM = readPharmacy(ref.Pharmacy, ref["Pharmacy notes"]);
@@ -280,16 +279,17 @@ $("#checkGroups").addEventListener("change", e => { const id = e.target.dataset.
 
 /* ---------- Pharmacy ---------- */
 let pharmView = false;
+const rxId = i => "rx:" + i.id; // a medicine and a checklist line may share an Id in their Sheets
 const rxRow = (k, v, cls) => v ? `<div${cls ? ` class="${cls}"` : ""}><dt>${k}</dt><dd>${esc(v)}</dd></div>` : "";
 function rxCard(i) {
-  return `<article class="rx${isDone(i.id) ? " got" : ""}"><label class="rx-top"><input type="checkbox" data-id="${esc(i.id)}" ${isDone(i.id) ? "checked" : ""}><span class="rx-title"><b>${esc(i.name)}</b><span class="rx-qty mono">${esc(i.qty)}</span></span></label>
+  return `<article class="rx${isDone(rxId(i)) ? " got" : ""}"><label class="rx-top"><input type="checkbox" data-id="${esc(rxId(i))}" ${isDone(rxId(i)) ? "checked" : ""}><span class="rx-title"><b>${esc(i.name)}</b><span class="rx-qty mono">${esc(i.qty)}</span></span></label>
     <dl class="rx-dl">${rxRow("For", i.for)}${rxRow("Who", i.who)}${rxRow("How", i.how)}${rxRow("Careful", i.careful, "rx-c")}${rxRow("Pack", i.pack)}</dl></article>`;
 }
 function renderPharmacy() {
   const box = $("#pharmBody");
   if (!PHARM) { box.innerHTML = `<div class="empty">Nothing here yet.</div>`; $("#pharmMeter").textContent = ""; return; }
   const all = PHARM.groups.flatMap(g => g.items);
-  $("#pharmMeter").textContent = `${all.filter(i => isDone(i.id)).length}/${all.length} bought`;
+  $("#pharmMeter").textContent = `${all.filter(i => isDone(rxId(i))).length}/${all.length} bought`;
   const t = $("#pharmToggle"); t.setAttribute("aria-pressed", pharmView); t.textContent = pharmView ? "Back to the full kit" : "Show the pharmacist";
   if (pharmView) {
     let n = 0;
@@ -402,7 +402,7 @@ async function load(link, { first = false } = {}) {
   try {
     const raw = await fetchTrip(link, old);
     const plan = readPlan(raw.plan);
-    if (!plan.days.length) throw Object.assign(new Error("no days"), { notPlan: true });
+    if (!plan.days.length) throw Object.assign(new Error("no days"), { notPlan: true, why: plan.problems[0] && plan.problems[0].text });
     store.set(LINK, link); store.set(COPY, raw);
     useTrip(raw); renderAll();
     setStatus("live", `Up to date as of ${fmtClock(raw.savedAt)}.`);
@@ -410,11 +410,11 @@ async function load(link, { first = false } = {}) {
   } catch (e) {
     if (first) {
       $("#setupMsg").textContent = e.notShared ? "That Sheet isn't shared. Set it to “Anyone with the link can view” and try again."
-        : e.notPlan ? "That Sheet opened, but it has no Days tab with days in it. Is it the Plan Sheet?"
+        : e.notPlan ? (e.why || "That Sheet opened, but it has no Days tab with days in it. Is it the Plan Sheet?")
         : "Couldn't reach Google Sheets. Check your connection and try again.";
     } else if (old) {
       setStatus("stale", e.notShared ? `The Sheet is no longer shared. Showing the copy saved ${savedWhen(old.savedAt)}.`
-        : e.notPlan ? `The Sheet's Days tab can't be read. Showing the copy saved ${savedWhen(old.savedAt)}.`
+        : e.notPlan ? `${e.why || "The Sheet's Days tab can't be read."} Showing the copy saved ${savedWhen(old.savedAt)}.`
         : `No connection. Showing the copy saved ${savedWhen(old.savedAt)}.`);
     }
     return false;

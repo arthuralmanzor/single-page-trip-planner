@@ -57,8 +57,23 @@ Disneyland Line, Ding Ding tram, Star Ferry, Bus. Any other name works too.
   whatever its time. Add it as a new row at the bottom. The site lists stops by time.
 - **Never renumber** the other stops. A code means the same stop for the whole trip.
 - **A dropped stop**: delete its row. Its code is not reused.
-- The `Days` tab has one row per day: its date, title, the day's note and what to bring (one item
-  per line). The `Trip` tab is a list of keys and values. Change a value, never a key.
+
+## The other tabs and Sheets
+
+Same rules everywhere: the first row is the headings, never change a heading or a tab's name, and
+every cell is plain text.
+
+| Tab | Columns | Notes |
+| --- | --- | --- |
+| `Trip` | Key, Value | Change a value, never a key. `Time zone` is a name like `Asia/Hong_Kong`. |
+| `Days` | Day, Date, Tag, Title, Note label, Note, Note type, Bring | `Day` is the day tab's exact name (`Day 3`). `Date` is `2026-11-18`. `Note type` is `tip` or `warn`. `Bring` is one item per line. |
+| `Bookings` | Code, Date, Type, Title, Time, Details, Bring, Status, Tickets | `Tickets` is one per line: `Label | https://drive.google.com/...`. No booking numbers here. |
+| `Changes` | When, Stop, What changed, Old, New | Add rows at the bottom. Never edit an old row. |
+| `Checklists` | Id, List, Item, Note, Done | `Id` is short and never reused. `List` is the list's title. `Done` is `yes` or empty. |
+| `Pharmacy` | Id, Group, Name, Qty, For, Who, How, Careful, Pack | One row per medicine. |
+| `Pharmacy notes` | Where, Text | `Where` is `Intro`, `Also`, `Good to know`, or a group's title. |
+| `Info` | Section, Label, Text, Style | One row per line of a section. `Style` is `big` for a number to show large. |
+| `Tables` | Table, A, B, C, D | `Table` is the section's title. Its first row is the column headings. |
 
 ## Changing the plan
 

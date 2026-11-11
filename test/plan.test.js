@@ -164,3 +164,35 @@ test("a plan with no Bookings tab has no bookings", () => {
   assert.deepEqual(readPlan(day3()).bookings, []);
   assert.deepEqual(readPlan({ ...day3(), Bookings: TRIP }).bookings, []);
 });
+
+test("a time zone the phone doesn't know is flagged and the plan still loads", () => {
+  const bad = readPlan({ ...day3(`"D3-01","11:15","travel","Leave","","","","","","","","","",""`), Trip: TRIP.replace("Asia/Hong_Kong", "Hong Kong") });
+  assert.equal(bad.days[0].stops[0].title, "Leave");
+  assert.match(bad.problems[0].text, /time zone "Hong Kong"/i);
+  assert.equal(bad.trip.timeZone, "UTC");
+  const none = readPlan({ ...day3(), Trip: TRIP.replace('"Time zone","Asia/Hong_Kong"\n', "") });
+  assert.match(none.problems[0].text, /time zone/i);
+});
+
+test("a stop that names a booking the Bookings tab doesn't have is flagged", () => {
+  const BOOKINGS = `"Code","Date","Type","Title","Time","Details","Bring","Status","Tickets"\n"BK-05","2027-11-18","Tickets","Peak Tram","","","","",""`;
+  const plan = readPlan({ ...day3(`"D3-07","16:45","key","Peak Tram up","","","","","","","","BK-05, BK-99","",""`), Bookings: BOOKINGS });
+  assert.deepEqual(plan.problems.map(p => p.text), ["The booking BK-99 isn't in the Bookings tab."]);
+  // With no Bookings tab at all there is nothing to check against.
+  assert.deepEqual(readPlan(day3(`"D3-07","16:45","key","Peak Tram up","","","","","","","","BK-99","",""`)).problems, []);
+});
+
+test("a line keeps its colour when its name carries more words", () => {
+  const plan = readPlan(day3(`"D3-01","11:15","travel","Leave","","","","MTR Island Line: Admiralty → Central
+Bus A21: Airport → Hotel
+Peak Tram: Garden Road → The Peak","","","","","",""`));
+  assert.deepEqual(plan.days[0].stops[0].legs.map(l => [l.line, l.name]), [["isl", "MTR Island Line"], ["bus", "Bus A21"], ["", "Peak Tram"]]);
+});
+
+test("midday of a date is on that date in the trip's time zone", async () => {
+  const { midday } = await import("../js/plan.js");
+  const fmt = tz => new Date(midday("2027-11-18", tz)).toLocaleDateString("en-CA", { timeZone: tz });
+  assert.equal(fmt("Asia/Hong_Kong"), "2027-11-18");
+  assert.equal(fmt("America/New_York"), "2027-11-18");
+  assert.equal(fmt("Pacific/Auckland"), "2027-11-18");
+});

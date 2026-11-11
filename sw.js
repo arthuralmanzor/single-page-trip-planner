@@ -1,6 +1,6 @@
 // Keeps the page itself on the phone so it opens with no signal.
 // The plan's own copy is saved by the page, not here.
-const SHELL = "shell-v1";
+const SHELL = "shell-v2";
 const FILES = ["./", "index.html", "css/app.css", "js/app.js", "js/plan.js", "js/reference.js", "js/csv.js", "js/sheets.js", "icon.svg", "manifest.webmanifest"];
 
 self.addEventListener("install", e => {
@@ -17,18 +17,15 @@ self.addEventListener("fetch", e => {
   if (!own && !font) return; // the Sheets go straight to the network
   e.respondWith((async () => {
     const cache = await caches.open(SHELL);
-    if (font) {
-      const hit = await cache.match(e.request);
-      if (hit) return hit;
-    }
-    try {
-      const res = await fetch(e.request);
+    const hit = await cache.match(e.request, { ignoreSearch: own });
+    // Answer from the phone's copy at once, so a weak signal never holds the page up,
+    // and fetch a newer copy in the background for the next open.
+    const fresh = () => fetch(e.request).then(res => {
       if (res.ok || res.type === "opaque") cache.put(e.request, res.clone());
       return res;
-    } catch (err) {
-      const hit = await cache.match(e.request, { ignoreSearch: own });
-      if (hit) return hit;
-      throw err;
-    }
+    });
+    if (!hit) return fresh();
+    if (!font) e.waitUntil(fresh().catch(() => {}));
+    return hit;
   })());
 });

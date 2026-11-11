@@ -18,8 +18,9 @@ signal.
 Checklists and the pharmacy kit are separate Sheets. Put their links in the `Trip` tab, in the
 rows `Checklists sheet` and `Pharmacy and info sheet`, and share them the same way.
 
-Booking numbers, names and ticket images don't belong in a shared Sheet. Keep them in a Sheet
-that isn't shared.
+Booking numbers and names don't belong in a shared Sheet. Keep them in a Sheet that isn't shared.
+Ticket images stay as private files in Drive. The `Bookings` tab holds only their links, which
+open for you alone.
 
 ## Asking Gemini to change the plan
 
