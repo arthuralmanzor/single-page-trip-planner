@@ -243,6 +243,17 @@ details.sim summary{cursor:pointer;color:var(--muted);font-weight:700;min-height
 .tl li.now .rail::after{content:"";position:absolute;left:8px;top:6px;width:2px;height:calc(var(--p,0) * (100% - 6px));background:var(--accent)}
 .tl li.now .body{background:var(--accent-soft);border-radius:12px;padding:10px 12px 14px;margin-bottom:14px}
 .tl li.next .node{border-width:3px}
+/* A done stop folds to its time, code and name. Its name is the button that opens it, and a folded
+   row is tappable all over. The button's height spills into the gaps, so the row keeps its size. */
+.tl .fold{display:flex;align-items:center;gap:8px;width:100%;min-height:var(--tap);margin-block:calc((var(--tap) - 1lh) / -2);padding:0;border:0;background:none;text-align:left;cursor:pointer}
+.tl .fold span{min-width:0}
+.tl .fold::before{content:"";order:1;flex:none;width:7px;height:7px;margin-right:4px;border:solid var(--muted);border-width:0 2px 2px 0;transform:translateY(2px) rotate(-135deg)}
+.tl li.folded{position:relative}
+.tl li.folded .fold::before{transform:translateY(-2px) rotate(45deg)}
+.tl li.folded .fold::after{content:"";position:absolute;inset:0}
+.tl li.folded .fold span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl li.folded .body>:not(h3){display:none}
+.tl li .time:has(~ .body .fold){cursor:pointer}
 .day-btn.past:not([aria-pressed="true"]){opacity:.6}
 @media (prefers-reduced-motion:reduce){.livedot{animation:none}}
 

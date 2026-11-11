@@ -1,4 +1,5 @@
 import { readPlan, dayTabs, midday } from "./plan.js";
+import { tripClock, stopKey } from "./clock.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs } from "./sheets.js";
 
@@ -16,7 +17,7 @@ const smooth = () => matchMedia("(prefers-reduced-motion:reduce)").matches ? "au
 /* ---------- The loaded trip ---------- */
 let TZ = "UTC", TRIP = null, DAYS = [], BOOKINGS = [], PROBLEMS = [];
 let CHECKS = [], PHARM = null, INFO = [];
-let FLAT = [], FIDX = {}, TRIP_END = 0;
+let CLOCK = tripClock([]);
 
 const fmtClock = ms => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ }).replace(/\s/g, "").toLowerCase();
 const fmtDow = ms => new Date(ms).toLocaleDateString("en-US", { weekday: "short", timeZone: TZ });
@@ -40,25 +41,13 @@ function useTrip(raw) {
   const ref = raw.reference || {};
   PHARM = readPharmacy(ref.Pharmacy, ref["Pharmacy notes"]);
   INFO = readInfo(ref.Info, ref.Tables);
-  FLAT = [];
-  DAYS.forEach(d => d.stops.forEach(s => { if (s.at != null) FLAT.push({ d, s, t: s.at }); }));
-  FLAT.sort((a, b) => a.t - b.t);
-  FIDX = {}; FLAT.forEach((f, i) => { FIDX[f.d.id + "/" + f.s.code] = i; });
-  TRIP_END = FLAT.length ? FLAT[FLAT.length - 1].t + 2 * 3600e3 : 0;
+  CLOCK = tripClock(DAYS);
 }
 
 /* ---------- Trip clock: where you should be ---------- */
 let sim = null, autoDay = true;
 const nowMs = () => sim ?? Date.now();
-function tripState(ms = nowMs()) {
-  if (!FLAT.length) return { phase: "empty", ms };
-  if (ms < FLAT[0].t) return { phase: "before", next: FLAT[0], ms };
-  if (ms >= TRIP_END) return { phase: "after", ms };
-  let i = 0; for (let k = 0; k < FLAT.length; k++) { if (FLAT[k].t <= ms) i = k; else break; }
-  const cur = FLAT[i], next = FLAT[i + 1] || null;
-  const p = next ? Math.min(1, Math.max(0, (ms - cur.t) / (next.t - cur.t))) : 1;
-  return { phase: "during", cur, next, idx: i, p, ms };
-}
+const tripState = (ms = nowMs()) => CLOCK.at(ms);
 /* Overnight, the last stop is from yesterday: focus on the day ahead. */
 function fresh(st) { return localDate(st.cur.t) === localDate(st.ms); }
 function focusDay(st) { return (!fresh(st) && st.next) ? st.next.d : st.cur.d; }
@@ -111,7 +100,7 @@ function renderStrip(st = tripState()) {
     <span class="dow">${esc(d.dow)}</span><span class="dn">${esc(d.dn)}</span><span class="tag">${esc(d.tag)}</span>${d.id === today ? '<span class="today">NOW</span>' : ""}</button>`).join("");
 }
 function timelineHTML(d) {
-  return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(d.id + "/" + s.code)}">
+  return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}">
       <span class="time">${esc(s.time)}<span class="code">${esc(s.code)}</span></span><span class="rail"><span class="node"></span></span>
       <div class="body"><span class="state" aria-live="polite"></span>${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>
         ${s.problems.map(p => `<div class="badnote">Fix in the Sheet: ${esc(p)}</div>`).join("")}
@@ -120,7 +109,7 @@ function timelineHTML(d) {
 }
 let packed = store.get("trip-bring") || {};
 function glanceHTML(d) {
-  const plan = d.stops.filter(s => s.summary).map(s => `<li><button type="button" class="g-item" data-goto="${esc(d.id + "/" + s.code)}"><span class="mono">${esc(s.time)}</span><span>${esc(s.summary)}</span></button></li>`).join("");
+  const plan = d.stops.filter(s => s.summary).map(s => `<li><button type="button" class="g-item" data-goto="${esc(stopKey(d, s))}"><span class="mono">${esc(s.time)}</span><span>${esc(s.summary)}</span></button></li>`).join("");
   const bring = d.bring.length ? `<div class="g-col"><h3 class="g-h">Bring today</h3><ul class="g-bring">${d.bring.map((b, i) => { const id = `${d.date}-${i}`; return `<li><label><input type="checkbox" data-bring="${esc(id)}" ${packed[id] ? "checked" : ""}><span>${esc(b)}</span></label></li>`; }).join("")}</ul><p class="g-every">${TRIP.everyDay ? `Every day: ${esc(TRIP.everyDay)}. ` : ""}Ticks stay on this phone.</p></div>` : "";
   if (!plan && !bring) return "";
   return `<section class="glance" aria-label="Day ${d.n} at a glance">${plan ? `<div class="g-col"><h3 class="g-h">Today's plan</h3><ol class="g-list">${plan}</ol></div>` : ""}${bring}</section>`;
@@ -148,23 +137,28 @@ function renderDay() {
 }
 function applyMarks(st = tripState()) {
   document.querySelectorAll("#dayView .g-item[data-goto]").forEach(g => {
-    const fi = FIDX[g.dataset.goto]; let cls = "";
-    if (st.phase === "after") cls = "done";
-    else if (st.phase === "during" && fi != null) { if (fi < st.idx) cls = "done"; else if (fi === st.idx && fresh(st)) cls = "now"; }
-    g.classList.toggle("done", cls === "done"); g.classList.toggle("now", cls === "now");
+    const { is } = CLOCK.mark(g.dataset.goto, st);
+    g.classList.toggle("done", is === "done"); g.classList.toggle("now", is === "now" && fresh(st));
   });
   document.querySelectorAll("#dayView li[data-k]").forEach(li => {
-    const fi = FIDX[li.dataset.k]; const s = li.querySelector(".state");
-    let cls = "";
-    if (st.phase === "after") cls = "done";
-    else if (st.phase === "during" && fi != null) {
-      if (fi < st.idx) cls = "done"; else if (fi === st.idx) cls = "now"; else if (fi === st.idx + 1) cls = "next";
-    }
+    const { is: cls, folds } = CLOCK.mark(li.dataset.k, st), s = li.querySelector(".state");
     li.classList.toggle("done", cls === "done"); li.classList.toggle("now", cls === "now"); li.classList.toggle("next", cls === "next");
+    fold(li, folds);
     if (cls === "now") { li.style.setProperty("--p", st.p.toFixed(3)); s.textContent = sim ? "Now (preview)" : "You are here"; }
     else if (cls === "next") { li.style.removeProperty("--p"); s.textContent = `Next · ${until(st.next.t - st.ms)}`; }
     else { li.style.removeProperty("--p"); s.textContent = ""; }
   });
+}
+/* A done stop folds to its time, code and name. Its name turns into a button that opens it and
+   folds it again, and a stop opened that way stays open while it's done. */
+const opened = new Set();
+function fold(li, folds) {
+  const k = li.dataset.k, h = li.querySelector("h3"), btn = h.querySelector(".fold");
+  if (folds && !btn) h.innerHTML = `<button type="button" class="fold"><span>${esc(h.textContent)}</span></button>`;
+  if (!folds) { opened.delete(k); if (btn) h.textContent = btn.textContent; }
+  const folded = folds && !opened.has(k);
+  li.classList.toggle("folded", folded);
+  if (folds) h.firstChild.setAttribute("aria-expanded", String(!folded));
 }
 function jumpToNow() {
   const st = tripState(); if (st.phase !== "during") return;
@@ -257,6 +251,12 @@ $("#dayView").addEventListener("input", e => {
   const notes = store.get("trip-notes") || {}; notes[date] = e.target.value; store.set("trip-notes", notes);
 });
 $("#dayView").addEventListener("click", e => {
+  const stop = e.target.closest("li[data-k]");
+  if (stop && stop.querySelector(".fold") && e.target.closest(".fold, .time")) {
+    const k = stop.dataset.k;
+    if (opened.has(k)) opened.delete(k); else opened.add(k);
+    fold(stop, true); return;
+  }
   const g = e.target.closest("[data-goto]"); if (!g) return;
   const li = [...document.querySelectorAll("#dayView li[data-k]")].find(x => x.dataset.k === g.dataset.goto);
   if (li) { li.scrollIntoView({ behavior: smooth(), block: "start" }); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1600); }

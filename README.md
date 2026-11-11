@@ -109,8 +109,9 @@ Plain HTML, CSS and JavaScript modules. No framework, no build step, no dependen
     python3 -m http.server 8765
     npm test
 
-- `js/plan.js` and `js/reference.js` turn the Sheets' text into what the page shows. The tests
-  cover them.
+- `js/plan.js` and `js/reference.js` turn the Sheets' text into what the page shows.
+  `js/clock.js` works out where you should be at a moment, and which stops are done by then. The
+  tests cover all three.
 - `js/app.js` draws the page. `js/sheets.js` fetches the tabs. `sw.js` keeps the page available
   with no signal.
 - A row the page can't read is flagged on screen and the rest still loads.
