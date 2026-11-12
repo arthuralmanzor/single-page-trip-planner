@@ -316,5 +316,5 @@ details.sim summary{cursor:pointer;color:var(--muted);font-weight:700;min-height
 
 /* Stops that changed since this phone last showed them */
 .changed{margin:0 0 18px;font-size:.9rem;font-weight:700;background:var(--tip-bg);color:var(--tip-ink);border-left:4px solid var(--tip-edge);border-radius:8px;padding:8px 12px}
-.tl .chg{align-self:flex-start;font-family:var(--f-mono);font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:5px;background:var(--tip-bg);color:var(--tip-ink)}
-.tl .chg.new{background:var(--ok-bg);color:var(--ok-ink)}
+.chg{align-self:flex-start;font-family:var(--f-mono);font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:5px;background:var(--tip-bg);color:var(--tip-ink)}
+.chg.new{background:var(--ok-bg);color:var(--ok-ink)}

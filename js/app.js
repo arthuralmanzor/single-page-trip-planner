@@ -70,18 +70,18 @@ function watchSeen() {
     clearTimeout(timers.get(el));
     if (intersectionRatio > 0.99) timers.set(el, setTimeout(() => { if (el.isConnected && !document.hidden) see(el); }, 2000));
   }), { threshold: 1, rootMargin: `-${top}px 0px 0px 0px` });
-  document.querySelectorAll("#dayView .chg, #changed:not([hidden])").forEach(el => watcher.observe(el));
+  document.querySelectorAll(".chg, #changed:not([hidden])").forEach(el => watcher.observe(el));
 }
 function see(el) {
   const seen = store.get(SEEN) || {};
   if (el.id === "changed") NEWS.removed.forEach(k => { delete seen[k]; });
-  else { const k = el.closest("li").dataset.k; seen[k] = SHOWN[k]; }
+  else seen[el.dataset.changed] = SHOWN[el.dataset.changed];
   store.set(SEEN, seen);
 }
 // Takes off the marks seen since the last check, without drawing the day again.
 function dropSeen() {
   readNews();
-  document.querySelectorAll("#dayView .chg").forEach(el => { if (!NEWS.marks[el.closest("li").dataset.k]) el.remove(); });
+  document.querySelectorAll(".chg").forEach(el => { if (!NEWS.marks[el.dataset.changed]) el.remove(); });
   renderChanged();
 }
 
@@ -140,7 +140,7 @@ function renderStrip(st = tripState()) {
   $("#dayStrip").innerHTML = DAYS.map((d, i) => `<button class="day-btn${i < curIdx ? " past" : ""}" type="button" data-day="${esc(d.id)}" aria-pressed="${d.id === selDay}">
     <span class="dow">${esc(d.dow)}</span><span class="dn">${esc(d.dn)}</span><span class="tag">${esc(d.tag)}</span>${d.id === today ? '<span class="today">NOW</span>' : ""}</button>`).join("");
 }
-const markHTML = k => NEWS.marks[k] ? `<span class="chg ${NEWS.marks[k]}">${NEWS.marks[k] === "new" ? "New" : "Updated"}</span>` : "";
+const markHTML = k => NEWS.marks[k] ? `<span class="chg ${NEWS.marks[k]}" data-changed="${esc(k)}">${NEWS.marks[k] === "new" ? "New" : "Updated"}</span>` : "";
 function timelineHTML(d) {
   return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}">
       <span class="time">${esc(s.time)}<span class="code">${esc(s.code)}</span></span><span class="rail"><span class="node"></span></span>
@@ -224,7 +224,7 @@ function renderNow(st = tripState()) {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip mode</span>${simTag}</div>
       <h3 class="now-title">${until(f.t - st.ms).replace(/^in /, "")} to go</h3>
       <p class="now-sub">From ${esc(fmtDate(f.t))}, this card shows where you should be, what's next and how to get there. Open the page on the day and it follows the plan by the clock.</p>
-      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span><h4>${esc(f.s.title)}</h4></div>`;
+      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span>${markHTML(stopKey(f.d, f.s))}<h4>${esc(f.s.title)}</h4></div>`;
   } else if (st.phase === "after") {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip complete</span>${simTag}</div><h3 class="now-title">Welcome home</h3><p class="now-sub">The full plan stays here for the photos and the memories.</p>`;
   } else {
@@ -234,19 +234,19 @@ function renderNow(st = tripState()) {
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
     const stop = stopHTML(cur.s);
     box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span></div>
-      ${isFresh ? `<div class="now-cur"><span class="mono code">${esc(cur.s.code)} · ${esc(cur.s.time)}</span><h3 class="now-title">${esc(cur.s.title)}</h3></div>
+      ${isFresh ? `<div class="now-cur"><span class="mono code">${esc(cur.s.code)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3></div>
       ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
       ${next && isFresh ? `<div class="now-bar" role="progressbar" aria-label="Time until the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}
       ${next ? `<div class="now-next">
         <span class="lbl">${next.s.kind === "travel" ? "Leave" : "Next"} ${sameDay ? "" : `${esc(fmtDow(next.t))} `}${fmtClock(next.t)} · ${until(next.t - ms)}</span>
-        <h4>${esc(next.s.title)}</h4>
+        ${markHTML(stopKey(next.d, next.s))}<h4>${esc(next.s.title)}</h4>
         ${legsHTML(next.s)}
         ${heads ? `<div class="heads"><span class="lbl">Heads-up</span><span>${esc(heads)}</span></div>` : ""}
       </div>` : `<p class="now-sub">That's the last stop of the trip.</p>`}
       <button type="button" class="btn" id="nowJump">Show in the day's plan</button>`;
   }
-  renderPill(st);
+  renderPill(st); watchSeen();
 }
 function renderPill(st) {
   const el = $("#countdown");
