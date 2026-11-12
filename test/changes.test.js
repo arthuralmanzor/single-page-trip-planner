@@ -95,8 +95,12 @@ test("a place given its address in the local language marks its stop updated", (
   assert.deepEqual(changesSince(shownStops(days([PEAK])), now).marks, { "d3/D3-04": "updated" });
 });
 
-test("a phone that saved the plan before places had local addresses sees no change", () => {
-  // What the page saved for PEAK before then.
-  const saved = { "d3/D3-04": '["13:00","visit","The Peak","","","",[],"","",[["Peak Tram","Peak Tram, Garden Road, Central"],["The Peak Tower","The Peak Tower"]],[],"",false]' };
-  assert.deepEqual(changesSince(saved, days([PEAK])), { marks: {}, removed: [] });
+test("a new version of the page marks no stop the Sheet didn't change", () => {
+  const full = `"D3-01","11:15","travel","Leave the hotel","Meet in the lobby.","11:15","≈11:43","Tsuen Wan Line: Prince Edward → Admiralty (Platform 2 · towards Central)
+Star Ferry: Central Pier 7 → Tsim Sha Tsui","Trains every 2 min.","Sit at the front.","Peak Tram | Peak Tram, Garden Road, Central
+The Peak Tower","BK-05, BK-06","Leave at 11:15","yes"`;
+  // What phones have saved for that stop. If this has to change, every family phone marks
+  // every stop "Updated" on its next load. Add a field only where a stop has a value for it.
+  const saved = { "d3/D3-01": '["11:15","travel","Leave the hotel","Meet in the lobby.","11:15","≈11:43",[["Tsuen Wan Line","Prince Edward","Admiralty",["Platform 2","towards Central"]],["Star Ferry","Central Pier 7","Tsim Sha Tsui",[]]],"Trains every 2 min.","Sit at the front.",[["Peak Tram","Peak Tram, Garden Road, Central"],["The Peak Tower","The Peak Tower"]],["BK-05","BK-06"],"Leave at 11:15",true]' };
+  assert.deepEqual(changesSince(saved, days([full])), { marks: {}, removed: [] });
 });
