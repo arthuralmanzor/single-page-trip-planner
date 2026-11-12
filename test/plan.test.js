@@ -196,3 +196,44 @@ test("midday of a date is on that date in the trip's time zone", async () => {
   assert.equal(fmt("America/New_York"), "2027-11-18");
   assert.equal(fmt("Pacific/Auckland"), "2027-11-18");
 });
+
+test("a stop that starts before the ride to it arrives is flagged", () => {
+  const plan = readPlan(day3(
+    `"D3-05","16:15","travel","Bus to the Peak Tram","","16:15","≈16:27","","","","","","",""`,
+    `"D3-06","16:20","food","Coffee at the tram","","","","","","","","","",""`,
+    `"D3-07","16:27","key","Peak Tram up","","","","","","","","","",""`,
+  ));
+  const text = "D3-06 starts at 16:20, before the ride D3-05 arrives at ≈16:27.";
+  assert.deepEqual(plan.problems, [{ where: "Day 3 · D3-06", text }]);
+  assert.deepEqual(plan.days[0].stops.map(s => s.problems), [[], [text], []]);
+});
+
+test("a ride's arrival is on the ride's own date", () => {
+  const plan = readPlan(day3(
+    `"D3-01","Nov 17 21:00","travel","Flight in","","21:00","≈22:10","","","","","","",""`,
+    `"D3-02","Nov 17 22:30","travel","Taxi to the hotel","","","","","","","","","",""`,
+  ));
+  assert.deepEqual(plan.problems, []);
+});
+
+test("every stop that starts during a ride is flagged, not only the next one", () => {
+  const plan = readPlan(day3(
+    `"D3-05","16:15","travel","Bus to the Peak Tram","","16:15","16:40","","","","","","",""`,
+    `"D3-06","16:20","food","Coffee","","","","","","","","","",""`,
+    `"D3-07","16:30","visit","Toilet break","","","","","","","","","",""`,
+    `"D3-08","16:40","key","Peak Tram up","","","","","","","","","",""`,
+  ));
+  assert.deepEqual(plan.problems.map(p => p.text), [
+    "D3-06 starts at 16:20, before the ride D3-05 arrives at 16:40.",
+    "D3-07 starts at 16:30, before the ride D3-05 arrives at 16:40.",
+  ]);
+});
+
+test("rides that start together are the group splitting up, and aren't flagged", () => {
+  const grandparents = `"D3-04","15:00","travel","Grandparents: taxi to the hotel","","15:00","≈15:35","","","","","","",""`;
+  const others = `"D3-05","15:00","travel","Everyone else: tram to the pier","","15:00","≈15:10","","","","","","",""`;
+  const ferry = `"D3-06","15:15","travel","Ferry across","","15:15","≈15:25","","","","","","",""`;
+  // The order of the rows doesn't matter: the next stop follows the ride that arrives first.
+  assert.deepEqual(readPlan(day3(grandparents, others, ferry)).problems, []);
+  assert.deepEqual(readPlan(day3(others, grandparents, ferry)).problems, []);
+});

@@ -53,7 +53,7 @@ function readTime(text, day, tz) {
   const at = zoned(date, hh, mm, tz);
   if (at == null) return null;
   const clock = `${hh}:${pad2(mm)}`;
-  return { at, shown: m[1] ? `${m[1]} ${+m[2]} ${clock}` : clock };
+  return { at, date, shown: m[1] ? `${m[1]} ${+m[2]} ${clock}` : clock };
 }
 
 function readLeg(text) {
@@ -104,6 +104,8 @@ function readStop(r, day, tz, seen, booked) {
   seen.add(code);
 
   const time = readTime(r.Time || "", day, tz);
+  // An arrival with no date of its own is on the ride's date, which can be the day before the tab's.
+  const arrival = time && readTime(r.Arrives || "", { date: time.date }, tz);
   if (!time) problems.push(r.Time ? `The time "${r.Time}" isn't a time like 16:30.` : "This stop has no time.");
   if (!r.Stop) problems.push("This stop has no name.");
   let kind = (r.Kind || "").toLowerCase();
@@ -122,6 +124,7 @@ function readStop(r, day, tz, seen, booked) {
     details: r.Details || "",
     leaves: r.Leaves || "",
     arrives: r.Arrives || "",
+    arrivesAt: arrival ? arrival.at : null,
     legs: lines(r.Route).map(readLeg),
     wait: r.Wait || "",
     tip: r.Tip || "",
@@ -149,8 +152,17 @@ function readStops(text, day, tz, problems, booked) {
   let last = -Infinity;
   const order = stops.map((s, i) => { if (s.at != null) last = s.at; return { s, key: s.at ?? last, i }; });
   order.sort((a, b) => a.key - b.key || a.i - b.i);
+  const name = s => s.code || s.title || "a stop";
+  // Stops that start together are the group splitting up. The page can't tell who goes on, so
+  // the next stop follows whichever of the rides arrives first.
+  let ride = null;
+  for (const { s } of order) {
+    if (ride && s.at > ride.at && s.at < ride.arrivesAt)
+      s.problems.push(`${name(s)} starts at ${s.time}, before the ride ${name(ride)} arrives at ${ride.arrives}.`);
+    if (s.arrivesAt != null && !(ride && ride.at === s.at && ride.arrivesAt <= s.arrivesAt)) ride = s;
+  }
   for (const { s } of order)
-    for (const text of s.problems) problems.push({ where: `${day.name} · ${s.code || s.title || "a stop"}`, text });
+    for (const text of s.problems) problems.push({ where: `${day.name} · ${name(s)}`, text });
   return order.map(o => o.s);
 }
 

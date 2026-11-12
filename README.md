@@ -119,7 +119,8 @@ Plain HTML, CSS and JavaScript modules. No framework, no build step, no dependen
   all four.
 - `js/app.js` draws the page. `js/sheets.js` fetches the tabs, and makes and reads the family
   link, which its tests cover. `sw.js` keeps the page available with no signal.
-- A row the page can't read is flagged on screen and the rest still loads.
+- A row the page can't read is flagged on screen and the rest still loads. So is a stop that
+  starts before the ride to it arrives.
 - Words used in the code and the Sheets: [GLOSSARY.md](GLOSSARY.md). Why the plan is in Sheets
   and not in this repo: [docs/adr](docs/adr/0001-plan-lives-in-google-sheets.md). What a review
   checks: [CODING_STANDARDS.md](CODING_STANDARDS.md).

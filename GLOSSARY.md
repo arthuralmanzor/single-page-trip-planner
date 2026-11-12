@@ -18,6 +18,11 @@ _Avoid_: date, page
 One timed entry in a Day: a place to be, a ride, or a meal. Named by its stop code, like D3-05.
 _Avoid_: item, event, activity
 
+**Ride**:
+A Stop that takes the family from one place to the next, with when it leaves and about when it
+arrives. No Stop after it starts before it arrives.
+_Avoid_: trip, journey
+
 **Booking**:
 Something paid or reserved ahead (a flight, the hotel, park tickets, the eSIM), named by its booking code, like BK-03.
 _Avoid_: reservation, ticket
