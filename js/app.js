@@ -220,9 +220,11 @@ function jumpToNow() {
 function renderNow(st = tripState()) {
   const box = $("#nowBody"), card = $("#nowCard");
   card.dataset.phase = st.phase; card.classList.toggle("is-sim", !!sim);
-  const simTag = sim ? '<span class="simtag">Preview</span>' : "";
+  // The preview tool is at the bottom of the page, so the way back to the clock is here.
+  const liveBtn = sim ? '<button type="button" class="btn" id="simLive">Back to live</button>' : "";
+  const simTag = sim ? `<span class="simtag">Preview</span>${liveBtn}` : "";
   if (st.phase === "empty") {
-    box.innerHTML = `<div class="now-head"><span class="kicker">Trip mode</span></div><p class="now-sub">Once the Sheet has stops with times, this card shows where you should be.</p>`;
+    box.innerHTML = `<div class="now-head"><span class="kicker">Trip mode</span>${simTag}</div><p class="now-sub">Once the Sheet has stops with times, this card shows where you should be.</p>`;
   } else if (st.phase === "before") {
     const f = st.next;
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip mode</span>${simTag}</div>
@@ -237,7 +239,7 @@ function renderNow(st = tripState()) {
     const sameDay = next && localDate(next.t) === localDate(ms);
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
     const stop = stopHTML(cur.s);
-    box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span></div>
+    box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span>${liveBtn}</div>
       ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3></div>
       ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
@@ -282,15 +284,20 @@ function tzOffset(date) { // "+08:00" for the trip's time zone on that date
 $("#simGo").addEventListener("click", () => {
   const date = $("#simDay").value; if (!date) return;
   sim = Date.parse(`${date}T${$("#simTime").value || "10:00"}:00${tzOffset(date)}`);
-  $("#simLive").hidden = false; autoDay = true; tick(); jumpToNow();
+  autoDay = true; tick();
+  // The tool is at the bottom of the page. Before or after the trip, the moment shows only in the
+  // now card at the top.
+  if (tripState().phase === "during") jumpToNow();
+  else if (location.hash && location.hash !== "#itinerary") location.hash = "itinerary"; // which scrolls to the top
+  else scrollTo({ top: 0, behavior: smooth() });
 });
-$("#simLive").addEventListener("click", () => { sim = null; $("#simLive").hidden = true; autoDay = true; tick(); toast("Back to the live clock"); });
 
 $("#dayStrip").addEventListener("click", e => { const b = e.target.closest("[data-day]"); if (!b) return; selDay = b.dataset.day; autoDay = false; store.set("trip-day", selDay); renderStrip(); renderDay(); });
 $("#nowCard").addEventListener("click", e => {
   const copy = e.target.closest("[data-stop-line]");
   if (copy) copyStop(copy.dataset.stopLine);
   else if (e.target.closest("#nowJump")) jumpToNow();
+  else if (e.target.closest("#simLive")) { sim = null; autoDay = true; tick(); toast("Back to the live clock"); }
 });
 $("#countdown").addEventListener("click", () => { jumpToNow(); });
 $("#dayView").addEventListener("change", e => {
@@ -444,7 +451,7 @@ function renderAll() {
   if (st.phase === "during" && autoDay) selDay = focusDay(st).id;
   if (!DAYS.some(d => d.id === selDay)) selDay = DAYS[0] ? DAYS[0].id : null;
   $("#v-setup").hidden = true;
-  ["#tabs", "#syncStatus", "#share", "#foot"].forEach(s => { $(s).hidden = false; });
+  ["#tabs", "#syncStatus", "#share", "#simBox", "#foot"].forEach(s => { $(s).hidden = false; });
   renderProblems(); renderSim(); renderStrip(st); renderDay(); renderNow(st);
   renderChecks(); renderPharmacy(); renderBookings(); renderInfo(); route();
 }
