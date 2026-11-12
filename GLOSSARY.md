@@ -34,6 +34,11 @@ _Avoid_: change request, proposal
 A Stop that is new, different or removed since this phone last showed it. Each phone works this out
 for itself, apart from the logged Changes.
 
+**Family link**:
+A link to this page that opens the Plan on another phone with nothing to paste. Anyone who has it
+can read the Plan, the same as with the Plan Sheet's own link.
+_Avoid_: invite, share code
+
 ## Reference
 
 **Checklist**:

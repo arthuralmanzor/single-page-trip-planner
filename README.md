@@ -12,7 +12,8 @@ the Peak Tram at 5pm, marked "Updated".
 The site: https://arthuralmanzor.github.io/single-page-trip-planner/
 
 The page holds no trip details. On first open it asks for the link to your Plan Sheet and keeps
-it on that phone, with a copy of the plan for when there's no signal.
+it on that phone, with a copy of the plan for when there's no signal. The rest of the family skip
+that step: tap "Share with family" and send them the link it makes.
 
 ## How it works
 
@@ -21,7 +22,9 @@ it on that phone, with a copy of the plan for when there's no signal.
 2. You hand it your plan in any form (notes, a document, an old itinerary) and ask it to set the
    trip up. It creates the Sheets.
 3. You share the Plan Sheet as "Anyone with the link can view" and paste its link into the site.
-4. From then on you ask for changes in plain words. The AI edits the Sheet and logs what changed.
+4. You tap "Share with family" at the bottom of the page and send the family the link. It opens
+   the plan on their phones with nothing to paste.
+5. From then on you ask for changes in plain words. The AI edits the Sheet and logs what changed.
 
 ## The Sheets
 
@@ -97,7 +100,8 @@ Each stop has a code like D3-05, shown beside it on the site. Using it makes a r
 
 ## Keep private details private
 
-Anyone with a shared Sheet's link can read it. Booking numbers, full names and document details
+Anyone with a shared Sheet's link can read it. The link from "Share with family" carries the
+Plan Sheet's link, so the same goes for it. Booking numbers, full names and document details
 go in a separate Sheet that you don't share. The skill tells the AI to keep them there. Ticket
 images stay as private files in Drive, and the Plan holds only their links, which open for you
 alone.
@@ -113,8 +117,8 @@ Plain HTML, CSS and JavaScript modules. No framework, no build step, no dependen
   `js/clock.js` works out where you should be at a moment, and which stops are done by then.
   `js/changes.js` works out which stops changed since the phone last showed them. The tests cover
   all four.
-- `js/app.js` draws the page. `js/sheets.js` fetches the tabs. `sw.js` keeps the page available
-  with no signal.
+- `js/app.js` draws the page. `js/sheets.js` fetches the tabs, and makes and reads the family
+  link, which its tests cover. `sw.js` keeps the page available with no signal.
 - A row the page can't read is flagged on screen and the rest still loads.
 - Words used in the code and the Sheets: [GLOSSARY.md](GLOSSARY.md). Why the plan is in Sheets
   and not in this repo: [docs/adr](docs/adr/0001-plan-lives-in-google-sheets.md). What a review

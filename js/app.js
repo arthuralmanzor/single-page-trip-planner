@@ -2,7 +2,7 @@ import { readPlan, dayTabs, midday } from "./plan.js";
 import { tripClock, stopKey } from "./clock.js";
 import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
-import { sheetId, fetchTabs } from "./sheets.js";
+import { sheetId, fetchTabs, familyLink, sheetFromFamilyLink } from "./sheets.js";
 
 /* ---------- Helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -396,7 +396,11 @@ function route() {
     if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
 }
-window.addEventListener("hashchange", () => { route(); window.scrollTo({ top: 0 }); });
+window.addEventListener("hashchange", () => {
+  // A family link pasted into a tab already on this page changes only the hash. Boot reads it.
+  if (sheetFromFamilyLink(location.href)) { location.reload(); return; }
+  route(); window.scrollTo({ top: 0 });
+});
 
 function renderProblems() {
   const box = $("#problems");
@@ -414,7 +418,7 @@ function renderAll() {
   if (st.phase === "during" && autoDay) selDay = focusDay(st).id;
   if (!DAYS.some(d => d.id === selDay)) selDay = DAYS[0] ? DAYS[0].id : null;
   $("#v-setup").hidden = true;
-  ["#tabs", "#syncStatus", "#foot"].forEach(s => { $(s).hidden = false; });
+  ["#tabs", "#syncStatus", "#share", "#foot"].forEach(s => { $(s).hidden = false; });
   renderProblems(); renderSim(); renderStrip(st); renderDay(); renderNow(st);
   renderChecks(); renderPharmacy(); renderBookings(); renderInfo(); route();
 }
@@ -473,22 +477,48 @@ async function load(link, { first = false } = {}) {
   } finally { loading = false; $("#refresh").disabled = false; }
 }
 
-$("#setupForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const link = $("#setupLink").value.trim();
-  if (!sheetId(link)) { $("#setupMsg").textContent = "That doesn't look like a Google Sheets link."; return; }
+async function openFromSetup(link) {
   $("#setupGo").disabled = true; $("#setupMsg").textContent = "Opening…";
   await load(link, { first: true });
   $("#setupGo").disabled = false;
+}
+$("#setupForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const typed = $("#setupLink").value.trim(), link = sheetFromFamilyLink(typed) || typed;
+  if (!sheetId(link)) { $("#setupMsg").textContent = "That doesn't look like a Google Sheets link."; return; }
+  openFromSetup(link);
 });
 $("#refresh").addEventListener("click", async () => { if (await load(store.get(LINK))) toast("Plan refreshed"); });
+// What came from the Sheet. The family's own ticks and notes stay.
+const dropSheet = () => [LINK, COPY, SEEN].forEach(k => store.drop(k));
 $("#forget").addEventListener("click", () => {
   if (!confirm("Forget this Sheet on this phone? Your ticks and notes stay.")) return;
-  store.drop(LINK); store.drop(COPY); store.drop(SEEN); location.hash = ""; location.reload();
+  dropSheet(); location.hash = ""; location.reload();
+});
+
+/* ---------- Share with family ---------- */
+$("#shareGo").addEventListener("click", async () => {
+  const url = familyLink(location.href, store.get(LINK));
+  if (navigator.share) {
+    try { await navigator.share({ title: TRIP.name, url }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast("Link copied. Send it to the family."); }
+  catch (e) { $("#shareLink").value = url; $("#shareCopy").hidden = false; $("#shareLink").select(); }
 });
 
 /* ---------- Boot ---------- */
 (function boot() {
+  const fromFamily = sheetFromFamilyLink(location.href);
+  if (fromFamily) history.replaceState(null, "", location.pathname + location.search);
+  if (fromFamily && sheetId(fromFamily) !== sheetId(store.get(LINK))) {
+    if (!store.get(LINK) || confirm("Open the plan from this link instead of the one on this phone? Your ticks and notes stay.")) {
+      dropSheet();
+      $("#v-setup").hidden = false; $("#setupLink").value = fromFamily;
+      openFromSetup(fromFamily);
+      return;
+    }
+  }
   const link = store.get(LINK), copy = store.get(COPY);
   if (!link) { $("#v-setup").hidden = false; return; }
   if (copy) {

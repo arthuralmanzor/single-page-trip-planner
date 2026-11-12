@@ -41,7 +41,7 @@
       <label class="fl" for="setupLink">Link to your Plan Sheet
         <input type="url" id="setupLink" inputmode="url" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/…" required>
       </label>
-      <p class="lede">In Google Sheets, tap Share, set it to “Anyone with the link can view”, and copy the link. It's saved on this phone only.</p>
+      <p class="lede">In Google Sheets, tap Share, set it to “Anyone with the link can view”, and copy the link. It's saved on this phone only. A link from “Share with family” works too.</p>
       <span class="saved" id="setupMsg" role="status"></span>
       <button class="btn primary" type="submit" id="setupGo" style="align-self:flex-start">Open the plan</button>
     </form>
@@ -93,6 +93,16 @@
   <section class="view" id="v-info" hidden>
     <div class="dayhead"><span class="kicker">Good to know</span><h2>Info &amp; food</h2></div>
     <div id="infoBody" style="display:flex;flex-direction:column;gap:18px"></div>
+  </section>
+
+  <!-- SHARE: shown once the plan is open -->
+  <section class="card share" id="share" aria-labelledby="shareHead" hidden>
+    <h3 id="shareHead">The plan on the family's phones</h3>
+    <p class="lede">Send them one link and the plan opens on their phone, with nothing to paste. Anyone who has the link can read the plan, the same as with the Sheet's own link.</p>
+    <button type="button" class="btn primary" id="shareGo">Share with family</button>
+    <label class="fl" for="shareLink" id="shareCopy" hidden>Copy this link and send it
+      <input type="url" id="shareLink" readonly>
+    </label>
   </section>
 
   <p class="fullfoot" id="foot" hidden>This page reads your Plan Sheet. To change the plan, ask Gemini or edit the Sheet. <button type="button" class="linkbtn" id="forget">Use a different Sheet</button></p>

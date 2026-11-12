@@ -147,6 +147,7 @@ trip the site can show:
 6. Put booking numbers, full names and document details in the Private Sheet.
 7. Tell the user to share the Plan, Checklists and Pharmacy and info Sheets as "Anyone with the
    link can view", and to paste the Plan's link into the site. The Private Sheet is never shared.
+   On the site, "Share with family" then makes one link that opens the plan on the family's phones.
 
 Don't invent a time, a fare, a route or an opening hour to fill a cell. Look it up, or leave the
 cell empty and say what's missing.

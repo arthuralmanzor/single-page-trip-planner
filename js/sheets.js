@@ -5,6 +5,19 @@ export function sheetId(link) {
   return m ? m[1] : null;
 }
 
+// Browsers don't send the part after # to the site, so its server never sees the Sheet's id.
+export function familyLink(page, sheetLink) {
+  const url = new URL(page);
+  url.hash = `plan=${sheetId(sheetLink)}`;
+  return url.href;
+}
+
+// Takes any text, since the setup form passes on whatever was pasted.
+export function sheetFromFamilyLink(text) {
+  const m = /#plan=([A-Za-z0-9_-]{20,})$/.exec(text);
+  return m ? `https://docs.google.com/spreadsheets/d/${m[1]}/edit` : null;
+}
+
 async function fetchTab(id, name) {
   const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
   const res = await fetch(url, { cache: "no-store" });
