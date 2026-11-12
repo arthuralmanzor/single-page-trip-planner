@@ -117,4 +117,5 @@ Plain HTML, CSS and JavaScript modules. No framework, no build step, no dependen
   with no signal.
 - A row the page can't read is flagged on screen and the rest still loads.
 - Words used in the code and the Sheets: [GLOSSARY.md](GLOSSARY.md). Why the plan is in Sheets
-  and not in this repo: [docs/adr](docs/adr/0001-plan-lives-in-google-sheets.md).
+  and not in this repo: [docs/adr](docs/adr/0001-plan-lives-in-google-sheets.md). What a review
+  checks: [CODING_STANDARDS.md](CODING_STANDARDS.md).
