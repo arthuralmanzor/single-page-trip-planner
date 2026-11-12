@@ -4,7 +4,8 @@ What a review checks on top of `npm test`, which already covers syntax, text und
 files kept for use with no signal.
 
 - **Words.** Names in the code and words on the page come from [GLOSSARY.md](GLOSSARY.md). A new
-  idea gets its entry there in the same change.
+  idea gets its entry there in the same change. A new `data-` attribute is named for the value it
+  holds, like `data-local-address` or `data-stop-line`.
 - **Sheet text.** Every value from a Sheet reaches the page's HTML through `esc()` in `js/app.js`.
   Fixed strings written in the code go in as they are.
 - **Kept on the phone.** Anything the page saves goes through `store` in `js/app.js`, under a key

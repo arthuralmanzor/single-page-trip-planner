@@ -24,6 +24,11 @@ arrives. No Stop after it starts before it arrives. Rides that start together ar
 splitting up.
 _Avoid_: trip, journey
 
+**Now card**:
+The card at the top of the plan that shows where the family should be now and what's next. It
+shows the current Stop in full, so whatever a Stop shows or does in the day's plan, it does there
+too.
+
 **Place**:
 Somewhere a Stop goes, with what to search for it in Google Maps.
 
