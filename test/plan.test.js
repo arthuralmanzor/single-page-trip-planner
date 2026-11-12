@@ -47,8 +47,8 @@ Times Square","BK-05, BK-06","","yes"`));
     { line: "ferry", name: "Star Ferry", from: "Central Pier 7", to: "Tsim Sha Tsui", notes: [] },
   ]);
   assert.deepEqual(s.places, [
-    { label: "Jollibee Causeway Bay", search: "Jollibee, 56-58 Yee Wo St, Causeway Bay" },
-    { label: "Times Square", search: "Times Square" },
+    { label: "Jollibee Causeway Bay", search: "Jollibee, 56-58 Yee Wo St, Causeway Bay", localAddress: "" },
+    { label: "Times Square", search: "Times Square", localAddress: "" },
   ]);
   assert.deepEqual(s.bookings, ["BK-05", "BK-06"]);
   assert.equal(s.leaves, "11:15");
@@ -56,6 +56,18 @@ Times Square","BK-05, BK-06","","yes"`));
   assert.equal(s.wait, "Trains every 2 min.");
   assert.equal(s.tip, "Sit at the front.");
   assert.equal(s.dayStart, true);
+  assert.deepEqual(plan.problems, []);
+});
+
+test("a place can carry its address in the local language, to show a taxi driver", () => {
+  const plan = readPlan(day3(`"D3-01","11:15","visit","Peak","","","","","","","Peak Tram | Peak Tram, Garden Road, Central | 中環花園道山頂纜車站
+The Peak Tower |  | 山頂道128號 凌霄閣
+Times Square","","",""`));
+  assert.deepEqual(plan.days[0].stops[0].places, [
+    { label: "Peak Tram", search: "Peak Tram, Garden Road, Central", localAddress: "中環花園道山頂纜車站" },
+    { label: "The Peak Tower", search: "The Peak Tower", localAddress: "山頂道128號 凌霄閣" },
+    { label: "Times Square", search: "Times Square", localAddress: "" },
+  ]);
   assert.deepEqual(plan.problems, []);
 });
 

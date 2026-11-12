@@ -1,11 +1,13 @@
 import { stopKey } from "./clock.js";
 
 // What the page shows of a stop, as one string. The fields are listed one by one, so a field
-// added to the stop later doesn't mark every stop "Updated" on the next load.
+// added to the stop later doesn't mark every stop "Updated" on the next load. A place's local
+// address joins it only when there is one, for the same reason.
 const shown = s => JSON.stringify([
   s.time, s.kind, s.title, s.details, s.leaves, s.arrives,
   s.legs.map(l => [l.name, l.from, l.to, l.notes]),
-  s.wait, s.tip, s.places.map(p => [p.label, p.search]), s.bookings, s.summary, s.dayStart,
+  s.wait, s.tip, s.places.map(p => p.localAddress ? [p.label, p.search, p.localAddress] : [p.label, p.search]),
+  s.bookings, s.summary, s.dayStart,
 ]);
 
 // Each stop of the plan as the page shows it, by its key, like "d3/D3-05".
