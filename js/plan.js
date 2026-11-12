@@ -33,7 +33,8 @@ function zoned(date, hh, mm, tz) {
 }
 
 // "16:30", "4:30 PM", "16:30:00", "≈9:05" or "Nov 15 13:45": the moment, and the text to show.
-function readTime(text, day, tz) {
+// A time with no date of its own is on `onDate`.
+function readTime(text, onDate, tz) {
   const m = /^(?:([A-Za-z]{3})[a-z]*\.? (\d{1,2}),? )?≈?(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap])?\.?m?\.?$/i.exec(text.trim());
   if (!m) return null;
   let hh = +m[3];
@@ -41,12 +42,12 @@ function readTime(text, day, tz) {
   if (half === "p" && hh < 12) hh += 12;
   if (half === "a" && hh === 12) hh = 0;
   if (hh > 23 || mm > 59) return null;
-  let date = day.date;
+  let date = onDate;
   if (m[1]) {
     const mon = MONTHS.indexOf(m[1].toLowerCase());
     if (mon < 0) return null;
-    // The date sits just before or inside the trip, so it takes the nearest year to the day's.
-    const y = +day.date.slice(0, 4), dMon = +day.date.slice(5, 7) - 1;
+    // The date sits just before or inside the trip, so it takes the nearest year to onDate's.
+    const y = +onDate.slice(0, 4), dMon = +onDate.slice(5, 7) - 1;
     const year = mon - dMon > 6 ? y - 1 : dMon - mon > 6 ? y + 1 : y;
     date = `${year}-${pad2(mon + 1)}-${pad2(+m[2])}`;
   }
@@ -103,9 +104,9 @@ function readStop(r, day, tz, seen, booked) {
   else if (seen.has(code)) problems.push(`The code ${code} is used twice.`);
   seen.add(code);
 
-  const time = readTime(r.Time || "", day, tz);
-  // An arrival with no date of its own is on the ride's date, which can be the day before the tab's.
-  const arrival = time && readTime(r.Arrives || "", { date: time.date }, tz);
+  const time = readTime(r.Time || "", day.date, tz);
+  // An arrival is on the ride's date, which can be the day before the tab's.
+  const arrival = time && readTime(r.Arrives || "", time.date, tz);
   if (!time) problems.push(r.Time ? `The time "${r.Time}" isn't a time like 16:30.` : "This stop has no time.");
   if (!r.Stop) problems.push("This stop has no name.");
   let kind = (r.Kind || "").toLowerCase();
@@ -152,17 +153,20 @@ function readStops(text, day, tz, problems, booked) {
   let last = -Infinity;
   const order = stops.map((s, i) => { if (s.at != null) last = s.at; return { s, key: s.at ?? last, i }; });
   order.sort((a, b) => a.key - b.key || a.i - b.i);
-  const name = s => s.code || s.title || "a stop";
-  // Stops that start together are the group splitting up. The page can't tell who goes on, so
-  // the next stop follows whichever of the rides arrives first.
-  let ride = null;
-  for (const { s } of order) {
-    if (ride && s.at > ride.at && s.at < ride.arrivesAt)
-      s.problems.push(`${name(s)} starts at ${s.time}, before the ride ${name(ride)} arrives at ${ride.arrives}.`);
-    if (s.arrivesAt != null && !(ride && ride.at === s.at && ride.arrivesAt <= s.arrivesAt)) ride = s;
+  const stopName = s => s.code || s.title || "a stop";
+  // Rides that start together are the group splitting up. The page can't tell who goes on, so a
+  // later stop follows whichever of them arrives first.
+  const rides = stops.filter(s => s.arrivesAt != null);
+  for (const s of stops) {
+    if (s.at == null) continue;
+    const before = rides.filter(r => r.at < s.at || (r.at === s.at && s.arrivesAt == null));
+    const last = Math.max(...before.map(r => r.at));
+    const ride = before.filter(r => r.at === last).sort((a, b) => a.arrivesAt - b.arrivesAt)[0];
+    if (ride && s.at < ride.arrivesAt)
+      s.problems.push(`${stopName(s)} starts at ${s.time}, before the ride ${stopName(ride)} arrives at ${ride.arrives}.`);
   }
   for (const { s } of order)
-    for (const text of s.problems) problems.push({ where: `${day.name} · ${name(s)}`, text });
+    for (const text of s.problems) problems.push({ where: `${day.name} · ${stopName(s)}`, text });
   return order.map(o => o.s);
 }
 

@@ -20,7 +20,8 @@ _Avoid_: item, event, activity
 
 **Ride**:
 A Stop that takes the family from one place to the next, with when it leaves and about when it
-arrives. No Stop after it starts before it arrives.
+arrives. No Stop after it starts before it arrives. Rides that start together are the group
+splitting up.
 _Avoid_: trip, journey
 
 **Booking**:

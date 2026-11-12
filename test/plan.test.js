@@ -230,10 +230,18 @@ test("every stop that starts during a ride is flagged, not only the next one", (
 });
 
 test("rides that start together are the group splitting up, and aren't flagged", () => {
-  const grandparents = `"D3-04","15:00","travel","Grandparents: taxi to the hotel","","15:00","≈15:35","","","","","","",""`;
+  const seniors = `"D3-04","15:00","travel","Seniors: taxi to the hotel","","15:00","≈15:35","","","","","","",""`;
   const others = `"D3-05","15:00","travel","Everyone else: tram to the pier","","15:00","≈15:10","","","","","","",""`;
   const ferry = `"D3-06","15:15","travel","Ferry across","","15:15","≈15:25","","","","","","",""`;
   // The order of the rows doesn't matter: the next stop follows the ride that arrives first.
-  assert.deepEqual(readPlan(day3(grandparents, others, ferry)).problems, []);
-  assert.deepEqual(readPlan(day3(others, grandparents, ferry)).problems, []);
+  assert.deepEqual(readPlan(day3(seniors, others, ferry)).problems, []);
+  assert.deepEqual(readPlan(day3(others, seniors, ferry)).problems, []);
+});
+
+test("a stop at the same time as a ride is flagged, since only rides split the group", () => {
+  const bus = `"D3-05","16:15","travel","Bus to the Peak Tram","","16:15","≈16:27","","","","","","",""`;
+  const tram = `"D3-07","16:15","key","Peak Tram up","","","","","","","","","",""`;
+  const text = "D3-07 starts at 16:15, before the ride D3-05 arrives at ≈16:27.";
+  assert.deepEqual(readPlan(day3(bus, tram)).problems.map(p => p.text), [text]);
+  assert.deepEqual(readPlan(day3(tram, bus)).problems.map(p => p.text), [text]);
 });
