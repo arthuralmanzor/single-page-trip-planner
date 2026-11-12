@@ -109,9 +109,9 @@ const legsHTML = s => s.legs.length ? `<div class="legs">${s.legs.map(legHTML).j
 const etaHTML = s => s.arrives ? `<div class="eta"><span class="lbl">Leave</span><b>${esc(s.leaves || s.time)}</b><span class="ar" aria-hidden="true">→</span><span class="lbl">Arrive</span><b>${esc(s.arrives)}</b></div>` : "";
 function bannerHTML(b) { return b ? `<div class="callout ${b.type === "warn" ? "warn" : "tip"}">${b.label ? `<span class="ic">${esc(b.label)}</span>` : ""}<span>${esc(b.text)}</span></div>` : ""; }
 function placeHTML(p) {
-  const map = `<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(p.search)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.750 7-13a7 7 0 0 0-7-7zm0 9.500a2.500 2.500 0 1 1 0-5 2.500 2.500 0 0 1 0 5z"/></svg><span>${esc(p.label)}</span></a>`;
-  if (!p.localAddress) return map;
-  return `<span class="place">${map}<button type="button" class="btn" data-driver="${esc(p.localAddress)}" data-place="${esc(p.label)}">Show the driver<span class="sr"> the address of ${esc(p.label)}</span></button></span>`;
+  const mapLink = `<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(p.search)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.750 7-13a7 7 0 0 0-7-7zm0 9.500a2.500 2.500 0 1 1 0-5 2.500 2.500 0 0 1 0 5z"/></svg><span>${esc(p.label)}</span></a>`;
+  if (!p.localAddress) return mapLink;
+  return `<span class="place">${mapLink}<button type="button" class="btn" data-local-address="${esc(p.localAddress)}" data-place="${esc(p.label)}">Show the driver<span class="sr"> the address of ${esc(p.label)}</span></button></span>`;
 }
 const mapHTML = places => places.length ? `<div class="maps">${places.map(placeHTML).join("")}</div>` : "";
 function ticketsFor(codes) {
@@ -310,9 +310,9 @@ $("#dayView").addEventListener("click", e => {
 /* ---------- Show the driver: a place's local address, full-screen ---------- */
 // The button is in the day's plan and in the now card, so one listener on the page serves both.
 document.addEventListener("click", e => {
-  const b = e.target.closest("[data-driver]"); if (!b) return;
+  const b = e.target.closest("[data-local-address]"); if (!b) return;
   $("#driverPlace").textContent = b.dataset.place;
-  $("#driverAddress").textContent = b.dataset.driver;
+  $("#driverAddress").textContent = b.dataset.localAddress;
   $("#driver").showModal();
 });
 $("#driverClose").addEventListener("click", () => $("#driver").close());
