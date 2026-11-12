@@ -108,10 +108,12 @@ function legHTML(l) {
 const legsHTML = s => s.legs.length ? `<div class="legs">${s.legs.map(legHTML).join("")}</div>` : "";
 const etaHTML = s => s.arrives ? `<div class="eta"><span class="lbl">Leave</span><b>${esc(s.leaves || s.time)}</b><span class="ar" aria-hidden="true">→</span><span class="lbl">Arrive</span><b>${esc(s.arrives)}</b></div>` : "";
 function bannerHTML(b) { return b ? `<div class="callout ${b.type === "warn" ? "warn" : "tip"}">${b.label ? `<span class="ic">${esc(b.label)}</span>` : ""}<span>${esc(b.text)}</span></div>` : ""; }
-function mapHTML(places) {
-  if (!places.length) return "";
-  return `<div class="maps">${places.map(p => `<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(p.search)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.750 7-13a7 7 0 0 0-7-7zm0 9.500a2.500 2.500 0 1 1 0-5 2.500 2.500 0 0 1 0 5z"/></svg><span>${esc(p.label)}</span></a>`).join("")}</div>`;
+function placeHTML(p) {
+  const map = `<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(p.search)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.750 7-13a7 7 0 0 0-7-7zm0 9.500a2.500 2.500 0 1 1 0-5 2.500 2.500 0 0 1 0 5z"/></svg><span>${esc(p.label)}</span></a>`;
+  if (!p.localAddress) return map;
+  return `<span class="place">${map}<button type="button" class="btn" data-driver="${esc(p.localAddress)}" data-place="${esc(p.label)}">Show the driver<span class="sr"> the address of ${esc(p.label)}</span></button></span>`;
 }
+const mapHTML = places => places.length ? `<div class="maps">${places.map(placeHTML).join("")}</div>` : "";
 function ticketsFor(codes) {
   const seen = new Set(), out = [];
   for (const b of BOOKINGS) if (codes.includes(b.code)) for (const t of b.tickets) if (!seen.has(t.url)) { seen.add(t.url); out.push(t); }
@@ -304,6 +306,16 @@ $("#dayView").addEventListener("click", e => {
   const li = [...document.querySelectorAll("#dayView li[data-k]")].find(x => x.dataset.k === g.dataset.goto);
   if (li) { li.scrollIntoView({ behavior: smooth(), block: "start" }); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1600); }
 });
+
+/* ---------- Show the driver: a place's local address, full-screen ---------- */
+// The button is in the day's plan and in the now card, so one listener on the page serves both.
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-driver]"); if (!b) return;
+  $("#driverPlace").textContent = b.dataset.place;
+  $("#driverAddress").textContent = b.dataset.driver;
+  $("#driver").showModal();
+});
+$("#driverClose").addEventListener("click", () => $("#driver").close());
 
 /* ---------- Ticks: the Sheet's Done column, then this phone's own ticks on top ---------- */
 let ticks = store.get("trip-ticks") || {};

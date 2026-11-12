@@ -71,8 +71,8 @@ function readLeg(text) {
 }
 
 function readPlace(text) {
-  const [label, search] = text.split("|").map(x => x.trim());
-  return { label, search: search || label };
+  const [label, search, localAddress] = text.split("|").map(x => x.trim());
+  return { label, search: search || label, localAddress: localAddress || "" };
 }
 
 function readTrip(text) {

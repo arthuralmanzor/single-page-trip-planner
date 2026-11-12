@@ -93,12 +93,16 @@ Every cell is plain text.
 | Route | One line per leg: `Line: From → To (note · note)` | `Island Line: Causeway Bay → Central (Platform 2 · towards Kennedy Town · Exit J2)` |
 | Wait | What to expect: queues, how often it runs | |
 | Tip | One heads-up | |
-| Places | One per line: `Label | what to search in Google Maps` | `Jollibee Causeway Bay | Jollibee, 56-58 Yee Wo St, Causeway Bay` |
+| Places | One per line: `Label | what to search in Google Maps | address in the local language`. The last part is optional. | `Jollibee Causeway Bay | Jollibee, 56-58 Yee Wo St, Causeway Bay | 銅鑼灣怡和街56-58號` |
 | Bookings | Booking codes this stop uses | `BK-05, BK-06` |
 | Summary | A few words if the stop belongs in the day's short plan, else empty | `Peak Tram up at sunset` |
 | Day start | `yes` on the stop where the day's outing begins | |
 
 `key` marks a stop the day is built around. Any line name works in a route.
+
+A place's local address is what the site shows a taxi driver, full-screen in large text. Copy it
+from the place's own website or its map listing, in the local script. Never translate it yourself.
+Leave it off when you can't find it.
 
 - **A new stop** takes the day's next free number. If Day 3 ends at D3-11, the new stop is D3-12
   whatever its time. Add it as a new row at the bottom. The site lists stops by time.

@@ -86,3 +86,17 @@ test("a change in any column of a stop marks it updated", () => {
     assert.deepEqual(changesSince(shownStops(days([before])), now).marks, { "d3/D3-01": "updated" }, col);
   }
 });
+
+const PEAK = `"D3-04","13:00","visit","The Peak","","","","","","","Peak Tram | Peak Tram, Garden Road, Central
+The Peak Tower","","",""`;
+
+test("a place given its address in the local language marks its stop updated", () => {
+  const now = days([PEAK.replace("Central\n", "Central | 中環花園道山頂纜車站\n")]);
+  assert.deepEqual(changesSince(shownStops(days([PEAK])), now).marks, { "d3/D3-04": "updated" });
+});
+
+test("a phone that saved the plan before places had local addresses sees no change", () => {
+  // What the page saved for PEAK before then.
+  const saved = { "d3/D3-04": '["13:00","visit","The Peak","","","",[],"","",[["Peak Tram","Peak Tram, Garden Road, Central"],["The Peak Tower","The Peak Tower"]],[],"",false]' };
+  assert.deepEqual(changesSince(saved, days([PEAK])), { marks: {}, removed: [] });
+});

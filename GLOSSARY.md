@@ -24,6 +24,13 @@ arrives. No Stop after it starts before it arrives. Rides that start together ar
 splitting up.
 _Avoid_: trip, journey
 
+**Place**:
+Somewhere a Stop goes, with what to search for it in Google Maps.
+
+**Local address**:
+A Place's address in the local language, shown full-screen for a taxi driver. Optional.
+_Avoid_: translation
+
 **Booking**:
 Something paid or reserved ahead (a flight, the hotel, park tickets, the eSIM), named by its booking code, like BK-03.
 _Avoid_: reservation, ticket
