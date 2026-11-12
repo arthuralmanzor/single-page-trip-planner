@@ -1,4 +1,4 @@
-import { readPlan, dayTabs, midday } from "./plan.js";
+import { readPlan, dayTabs, midday, stopLine } from "./plan.js";
 import { tripClock, stopKey } from "./clock.js";
 import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
@@ -142,10 +142,12 @@ function renderStrip(st = tripState()) {
   $("#dayStrip").innerHTML = DAYS.map((d, i) => `<button class="day-btn${i < curIdx ? " past" : ""}" type="button" data-day="${esc(d.id)}" aria-pressed="${d.id === selDay}">
     <span class="dow">${esc(d.dow)}</span><span class="dn">${esc(d.dn)}</span><span class="tag">${esc(d.tag)}</span>${d.id === today ? '<span class="today">NOW</span>' : ""}</button>`).join("");
 }
+const COPY_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>`;
+const copyHTML = (d, s) => `<button type="button" class="copy" data-stop-line="${esc(stopLine(d, s))}">${s.code ? `<span class="sr">Copy </span>${esc(s.code)}` : "Copy"}${COPY_ICON}</button>`;
 const markHTML = k => NEWS.marks[k] ? `<span class="chg ${NEWS.marks[k]}" data-changed="${esc(k)}">${NEWS.marks[k] === "new" ? "New" : "Updated"}</span>` : "";
 function timelineHTML(d) {
   return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}">
-      <span class="time">${esc(s.time)}<span class="code">${esc(s.code)}</span></span><span class="rail"><span class="node"></span></span>
+      <span class="time">${esc(s.time)}<span class="code">${esc(s.code)}</span>${copyHTML(d, s)}</span><span class="rail"><span class="node"></span></span>
       <div class="body"><span class="state" aria-live="polite"></span>${markHTML(stopKey(d, s))}${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>
         ${s.problems.map(p => `<div class="badnote">Fix in the Sheet: ${esc(p)}</div>`).join("")}
         ${stopHTML(s)}
@@ -172,7 +174,7 @@ function renderDay() {
    ${glanceHTML(d)}
    ${bannerHTML(d.banner)}
    ${dayBookingsHTML(d)}
-   <p class="codehint">Each stop has a code like <span class="mono">D${d.n}-03</span>. Use it when you ask Gemini for a change.</p>
+   <p class="codehint">Each stop has a code like <span class="mono">D${d.n}-03</span>. Tap it to copy the stop, then paste it when you ask Gemini for a change.</p>
    ${d.stops.length ? timelineHTML(d) : `<div class="empty">No stops on this day yet.</div>`}
    <div class="card"><h3>My notes for ${esc(d.name)}</h3>
      <label for="dayNote" class="saved" style="min-height:0">Saved on this phone only.</label>
@@ -296,6 +298,8 @@ $("#dayView").addEventListener("input", e => {
   const notes = store.get("trip-notes") || {}; notes[date] = e.target.value; store.set("trip-notes", notes);
 });
 $("#dayView").addEventListener("click", e => {
+  const copy = e.target.closest("[data-stop-line]");
+  if (copy) { copyStop(copy.dataset.stopLine); return; }
   const stop = e.target.closest("li[data-k]");
   if (stop && stop.querySelector(".fold") && e.target.closest(".fold, .time")) {
     const k = stop.dataset.k;
@@ -306,6 +310,12 @@ $("#dayView").addEventListener("click", e => {
   const li = [...document.querySelectorAll("#dayView li[data-k]")].find(x => x.dataset.k === g.dataset.goto);
   if (li) { li.scrollIntoView({ behavior: smooth(), block: "start" }); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1600); }
 });
+
+/* ---------- Copy a stop to paste into a chat ---------- */
+async function copyStop(line) {
+  try { await navigator.clipboard.writeText(line); toast("Copied. Paste it into your chat."); }
+  catch (e) { toast("Couldn't copy here. Type the stop's code instead."); }
+}
 
 /* ---------- Show the driver: a place's local address, full-screen ---------- */
 // The button is in the day's plan and in the now card, so one listener on the page serves both.

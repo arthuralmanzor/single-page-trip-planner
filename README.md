@@ -97,6 +97,8 @@ During the trip:
 > What's next, and how do we get there?
 
 Each stop has a code like D3-05, shown beside it on the site. Using it makes a request exact.
+Tap the code to copy the stop as one line, like "D3-05, Peak Tram up, Day 3 at 16:45", and
+paste it into the chat.
 
 ## Keep private details private
 

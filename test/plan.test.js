@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readPlan } from "../js/plan.js";
+import { readPlan, stopLine } from "../js/plan.js";
 
 const TRIP = `"Key","Value"
 "Name","Sample city trip"
@@ -256,4 +256,30 @@ test("a stop at the same time as a ride is flagged, since only rides split the g
   const text = "D3-07 starts at 16:15, before the ride D3-05 arrives at ≈16:27.";
   assert.deepEqual(readPlan(day3(bus, tram)).problems.map(p => p.text), [text]);
   assert.deepEqual(readPlan(day3(tram, bus)).problems.map(p => p.text), [text]);
+});
+
+test("a stop copies as one line with its code, name, day and time", () => {
+  const plan = readPlan(day3(`"D3-05","16:45","key","Peak Tram up","","","","","","","","","",""`));
+  const d = plan.days[0];
+  assert.equal(stopLine(d, d.stops[0]), "D3-05, Peak Tram up, Day 3 at 16:45");
+});
+
+test("a stop on the night before its day copies with its own date", () => {
+  const plan = readPlan(day3(`"D3-01","Nov 17 23:30","travel","Flight in","","","","","","","","","",""`));
+  const d = plan.days[0];
+  assert.equal(stopLine(d, d.stops[0]), "D3-01, Flight in, Day 3, Nov 17 at 23:30");
+});
+
+test("a stop missing its time, name or code copies what it has", () => {
+  const plan = readPlan(day3(
+    `"D3-02","","visit","No time","","","","","","","","","",""`,
+    `"","14:00","visit","No code","","","","","","","","","",""`,
+    `"D3-05","15:00","visit","","","","","","","","","","",""`,
+  ));
+  const d = plan.days[0];
+  assert.deepEqual(d.stops.map(s => stopLine(d, s)), [
+    "D3-02, No time, Day 3",
+    "No code, Day 3 at 14:00",
+    "D3-05, Day 3 at 15:00",
+  ]);
 });
