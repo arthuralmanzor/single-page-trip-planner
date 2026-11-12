@@ -226,6 +226,14 @@ export function readPlan(tabs) {
   return { trip, days, bookings, problems };
 }
 
+// A stop as one line to paste into a chat with an AI, like "D3-05, Peak Tram up, Day 3 at 16:45".
+export function stopLine(day, s) {
+  // A time read with its own date shows as "Nov 17 23:30".
+  const dated = s.at != null && /^(.+) (\S+)$/.exec(s.time);
+  const when = dated ? `${day.name}, ${dated[1]} at ${dated[2]}` : s.time ? `${day.name} at ${s.time}` : day.name;
+  return [s.code, s.title, when].filter(Boolean).join(", ");
+}
+
 // The tab names the Plan needs, once the Days tab is known.
 export function dayTabs(daysText) {
   const t = table(daysText);
