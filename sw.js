@@ -1,5 +1,8 @@
 // Keeps the page itself on the phone so it opens with no signal.
 // The plan's own copy is saved by the page, not here.
+// Bump SHELL whenever a file in FILES changes. A changed sw.js makes the phone fetch all of FILES
+// again at once. Otherwise each file updates on its own, and a weak signal can leave old and new
+// files mixed.
 const SHELL = "shell-v6";
 const FILES = ["./", "index.html", "css/app.css", "js/app.js", "js/plan.js", "js/clock.js", "js/changes.js", "js/reference.js", "js/csv.js", "js/sheets.js", "icon.svg", "manifest.webmanifest"];
 
