@@ -238,7 +238,7 @@ function renderNow(st = tripState()) {
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
     const stop = stopHTML(cur.s);
     box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span></div>
-      ${isFresh ? `<div class="now-cur"><span class="mono code">${esc(cur.s.code)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3></div>
+      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3></div>
       ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
       ${next && isFresh ? `<div class="now-bar" role="progressbar" aria-label="Time until the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}
@@ -287,7 +287,11 @@ $("#simGo").addEventListener("click", () => {
 $("#simLive").addEventListener("click", () => { sim = null; $("#simLive").hidden = true; autoDay = true; tick(); toast("Back to the live clock"); });
 
 $("#dayStrip").addEventListener("click", e => { const b = e.target.closest("[data-day]"); if (!b) return; selDay = b.dataset.day; autoDay = false; store.set("trip-day", selDay); renderStrip(); renderDay(); });
-$("#nowCard").addEventListener("click", e => { if (e.target.closest("#nowJump")) jumpToNow(); });
+$("#nowCard").addEventListener("click", e => {
+  const copy = e.target.closest("[data-stop-line]");
+  if (copy) copyStop(copy.dataset.stopLine);
+  else if (e.target.closest("#nowJump")) jumpToNow();
+});
 $("#countdown").addEventListener("click", () => { jumpToNow(); });
 $("#dayView").addEventListener("change", e => {
   const id = e.target.dataset && e.target.dataset.bring; if (!id) return;
