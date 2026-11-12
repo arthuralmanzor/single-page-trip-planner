@@ -6,8 +6,8 @@ there, and it follows the clock through the trip.
 You don't edit the plan here. The plan lives in Google Sheets that you own, and you keep it up to
 date by talking to an AI. Gemini, Claude, ChatGPT or any other works, as long as it can edit your
 Google Sheets.
-You say "move the Peak Tram to 5pm", it edits the Sheet, and the page shows the change the next
-time you open it.
+You say "move the Peak Tram to 5pm", it edits the Sheet, and within a few minutes the page shows
+the Peak Tram at 5pm, marked "Updated".
 
 The site: https://arthuralmanzor.github.io/single-page-trip-planner/
 
@@ -110,8 +110,9 @@ Plain HTML, CSS and JavaScript modules. No framework, no build step, no dependen
     npm test
 
 - `js/plan.js` and `js/reference.js` turn the Sheets' text into what the page shows.
-  `js/clock.js` works out where you should be at a moment, and which stops are done by then. The
-  tests cover all three.
+  `js/clock.js` works out where you should be at a moment, and which stops are done by then.
+  `js/changes.js` works out which stops changed since the phone last showed them. The tests cover
+  all four.
 - `js/app.js` draws the page. `js/sheets.js` fetches the tabs. `sw.js` keeps the page available
   with no signal.
 - A row the page can't read is flagged on screen and the rest still loads.

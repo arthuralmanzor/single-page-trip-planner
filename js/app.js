@@ -1,5 +1,6 @@
 import { readPlan, dayTabs, midday } from "./plan.js";
 import { tripClock, stopKey } from "./clock.js";
+import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs } from "./sheets.js";
 
@@ -42,6 +43,46 @@ function useTrip(raw) {
   PHARM = readPharmacy(ref.Pharmacy, ref["Pharmacy notes"]);
   INFO = readInfo(ref.Info, ref.Tables);
   CLOCK = tripClock(DAYS);
+  SHOWN = shownStops(DAYS);
+  // The first plan this phone opens has nothing to mark.
+  if (!store.get(SEEN)) store.set(SEEN, SHOWN);
+}
+
+/* ---------- Stops that changed since this phone last showed them ---------- */
+const SEEN = "trip-seen";
+let SHOWN = {}, NEWS = { marks: {}, removed: [] };
+const readNews = () => { NEWS = changesSince(store.get(SEEN) || SHOWN, DAYS); };
+function renderChanged() {
+  const text = changeLine(NEWS, DAYS), el = $("#changed");
+  el.hidden = !text; el.textContent = text;
+  watchSeen();
+}
+/* A mark counts as seen after two seconds on screen, and the line after two seconds for the
+   removed stops it counts. Both stay drawn until the next check or the next time the day is
+   drawn, so they don't vanish mid-read. */
+const timers = new WeakMap();
+let watcher = null;
+function watchSeen() {
+  if (watcher) watcher.disconnect();
+  // The sticky header covers the top of the screen, so a mark under it isn't on screen.
+  const top = Math.ceil($("header.ticket").getBoundingClientRect().bottom);
+  watcher = new IntersectionObserver(entries => entries.forEach(({ target: el, intersectionRatio }) => {
+    clearTimeout(timers.get(el));
+    if (intersectionRatio > 0.99) timers.set(el, setTimeout(() => { if (el.isConnected && !document.hidden) see(el); }, 2000));
+  }), { threshold: 1, rootMargin: `-${top}px 0px 0px 0px` });
+  document.querySelectorAll(".chg, #changed:not([hidden])").forEach(el => watcher.observe(el));
+}
+function see(el) {
+  const seen = store.get(SEEN) || {};
+  if (el.id === "changed") NEWS.removed.forEach(k => { delete seen[k]; });
+  else seen[el.dataset.changed] = SHOWN[el.dataset.changed];
+  store.set(SEEN, seen);
+}
+// Takes off the marks seen since the last check, without drawing the day again.
+function dropSeen() {
+  readNews();
+  document.querySelectorAll(".chg").forEach(el => { if (!NEWS.marks[el.dataset.changed]) el.remove(); });
+  renderChanged();
 }
 
 /* ---------- Trip clock: where you should be ---------- */
@@ -99,10 +140,11 @@ function renderStrip(st = tripState()) {
   $("#dayStrip").innerHTML = DAYS.map((d, i) => `<button class="day-btn${i < curIdx ? " past" : ""}" type="button" data-day="${esc(d.id)}" aria-pressed="${d.id === selDay}">
     <span class="dow">${esc(d.dow)}</span><span class="dn">${esc(d.dn)}</span><span class="tag">${esc(d.tag)}</span>${d.id === today ? '<span class="today">NOW</span>' : ""}</button>`).join("");
 }
+const markHTML = k => NEWS.marks[k] ? `<span class="chg ${NEWS.marks[k]}" data-changed="${esc(k)}">${NEWS.marks[k] === "new" ? "New" : "Updated"}</span>` : "";
 function timelineHTML(d) {
   return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}">
       <span class="time">${esc(s.time)}<span class="code">${esc(s.code)}</span></span><span class="rail"><span class="node"></span></span>
-      <div class="body"><span class="state" aria-live="polite"></span>${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>
+      <div class="body"><span class="state" aria-live="polite"></span>${markHTML(stopKey(d, s))}${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>
         ${s.problems.map(p => `<div class="badnote">Fix in the Sheet: ${esc(p)}</div>`).join("")}
         ${stopHTML(s)}
       </div></li>`).join("")}</ol>`;
@@ -119,6 +161,7 @@ function dayBookingsHTML(d) {
   return list.length ? `<div class="daybk"><span class="lbl">Booked</span>${list.map(b => `<a href="#bookings" class="bkchip"><span class="mono">${esc(b.code)}</span> ${esc(b.title)}${b.time ? ` · ${esc(b.time)}` : ""}</a>`).join("")}</div>` : "";
 }
 function renderDay() {
+  readNews();
   const d = dayById(selDay);
   if (!d) { $("#dayView").innerHTML = `<div class="empty">The Sheet has no days yet.</div>`; return; }
   const notes = store.get("trip-notes") || {};
@@ -133,7 +176,7 @@ function renderDay() {
      <label for="dayNote" class="saved" style="min-height:0">Saved on this phone only.</label>
      <textarea id="dayNote" data-note="${esc(d.date)}" placeholder="e.g. Meet at Exit J2">${esc(notes[d.date] || "")}</textarea>
    </div>`;
-  applyMarks();
+  applyMarks(); renderChanged();
 }
 function applyMarks(st = tripState()) {
   document.querySelectorAll("#dayView .g-item[data-goto]").forEach(g => {
@@ -181,7 +224,7 @@ function renderNow(st = tripState()) {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip mode</span>${simTag}</div>
       <h3 class="now-title">${until(f.t - st.ms).replace(/^in /, "")} to go</h3>
       <p class="now-sub">From ${esc(fmtDate(f.t))}, this card shows where you should be, what's next and how to get there. Open the page on the day and it follows the plan by the clock.</p>
-      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span><h4>${esc(f.s.title)}</h4></div>`;
+      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span>${markHTML(stopKey(f.d, f.s))}<h4>${esc(f.s.title)}</h4></div>`;
   } else if (st.phase === "after") {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip complete</span>${simTag}</div><h3 class="now-title">Welcome home</h3><p class="now-sub">The full plan stays here for the photos and the memories.</p>`;
   } else {
@@ -191,19 +234,19 @@ function renderNow(st = tripState()) {
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
     const stop = stopHTML(cur.s);
     box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span></div>
-      ${isFresh ? `<div class="now-cur"><span class="mono code">${esc(cur.s.code)} · ${esc(cur.s.time)}</span><h3 class="now-title">${esc(cur.s.title)}</h3></div>
+      ${isFresh ? `<div class="now-cur"><span class="mono code">${esc(cur.s.code)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3></div>
       ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
       ${next && isFresh ? `<div class="now-bar" role="progressbar" aria-label="Time until the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}
       ${next ? `<div class="now-next">
         <span class="lbl">${next.s.kind === "travel" ? "Leave" : "Next"} ${sameDay ? "" : `${esc(fmtDow(next.t))} `}${fmtClock(next.t)} · ${until(next.t - ms)}</span>
-        <h4>${esc(next.s.title)}</h4>
+        ${markHTML(stopKey(next.d, next.s))}<h4>${esc(next.s.title)}</h4>
         ${legsHTML(next.s)}
         ${heads ? `<div class="heads"><span class="lbl">Heads-up</span><span>${esc(heads)}</span></div>` : ""}
       </div>` : `<p class="now-sub">That's the last stop of the trip.</p>`}
       <button type="button" class="btn" id="nowJump">Show in the day's plan</button>`;
   }
-  renderPill(st);
+  renderPill(st); watchSeen();
 }
 function renderPill(st) {
   const el = $("#countdown");
@@ -398,18 +441,22 @@ async function fetchTrip(link, old) {
   return { plan, checklists, reference, savedAt: Date.now() };
 }
 
-let loading = false;
+// The plan the page shows, as text. A check that finds the same plan draws nothing again, so it
+// doesn't close the keyboard on a note being typed.
+let drawn = "";
+const planText = raw => JSON.stringify([raw.plan, raw.checklists, raw.reference]);
+let loading = false, checkedAt = 0;
 async function load(link, { first = false } = {}) {
   if (loading) return false;
-  loading = true; $("#refresh").disabled = true;
+  loading = true; checkedAt = Date.now(); $("#refresh").disabled = true;
   const old = store.get(COPY);
-  if (TRIP) setStatus("", "Checking the Sheet…");
+  if (TRIP) { setStatus("", "Checking the Sheet…"); dropSeen(); }
   try {
     const raw = await fetchTrip(link, old);
     const plan = readPlan(raw.plan);
     if (!plan.days.length) throw Object.assign(new Error("no days"), { notPlan: true, why: plan.problems[0] && plan.problems[0].text });
     store.set(LINK, link); store.set(COPY, raw);
-    useTrip(raw); renderAll();
+    if (planText(raw) !== drawn) { useTrip(raw); renderAll(); drawn = planText(raw); }
     setStatus("live", `Up to date as of ${fmtClock(raw.savedAt)}.`);
     return true;
   } catch (e) {
@@ -437,7 +484,7 @@ $("#setupForm").addEventListener("submit", async e => {
 $("#refresh").addEventListener("click", async () => { if (await load(store.get(LINK))) toast("Plan refreshed"); });
 $("#forget").addEventListener("click", () => {
   if (!confirm("Forget this Sheet on this phone? Your ticks and notes stay.")) return;
-  store.drop(LINK); store.drop(COPY); location.hash = ""; location.reload();
+  store.drop(LINK); store.drop(COPY); store.drop(SEEN); location.hash = ""; location.reload();
 });
 
 /* ---------- Boot ---------- */
@@ -445,11 +492,14 @@ $("#forget").addEventListener("click", () => {
   const link = store.get(LINK), copy = store.get(COPY);
   if (!link) { $("#v-setup").hidden = false; return; }
   if (copy) {
-    try { useTrip(copy); renderAll(); setStatus("", `Saved ${savedWhen(copy.savedAt)}. Checking the Sheet…`); } catch (e) {}
+    try { useTrip(copy); renderAll(); drawn = planText(copy); setStatus("", `Saved ${savedWhen(copy.savedAt)}. Checking the Sheet…`); } catch (e) {}
   } else { $("#syncStatus").hidden = false; }
   load(link);
 })();
-setInterval(tick, 30000);
+setInterval(() => {
+  tick();
+  if (!document.hidden && TRIP && Date.now() - checkedAt >= 5 * 60e3) load(store.get(LINK));
+}, 30000);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden || !TRIP) return;
   tick();

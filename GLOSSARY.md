@@ -30,6 +30,10 @@ _Avoid_: receipt, attachment
 One edit to the Plan, logged with when it happened, the Stop, and the old and new value.
 _Avoid_: change request, proposal
 
+**Changed stop**:
+A Stop that is new, different or removed since this phone last showed it. Each phone works this out
+for itself, apart from the logged Changes.
+
 ## Reference
 
 **Checklist**:
