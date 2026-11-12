@@ -55,14 +55,6 @@
   <section class="view" id="v-itinerary" hidden>
     <section class="nowcard" id="nowCard" aria-label="Where you should be now">
       <div id="nowBody"></div>
-      <details class="sim" id="simBox"><summary>Preview another moment</summary>
-        <div class="simrow">
-          <label for="simDay">Day<select id="simDay"></select></label>
-          <label for="simTime">Time<input type="time" id="simTime" value="10:20"></label>
-          <button type="button" class="btn" id="simGo">Preview</button>
-          <button type="button" class="btn ghost" id="simLive" hidden>Back to live</button>
-        </div>
-      </details>
     </section>
     <div class="days" id="dayStrip" role="group" aria-label="Choose a day"></div>
     <div id="dayView" class="view" style="display:flex;flex-direction:column;gap:18px"></div>
@@ -104,6 +96,15 @@
       <input type="url" id="shareLink" readonly>
     </label>
   </section>
+
+  <!-- PREVIEW: for trying the page out before the trip -->
+  <details class="sim" id="simBox" hidden><summary>Preview another moment</summary>
+    <div class="simrow">
+      <label for="simDay">Day<select id="simDay"></select></label>
+      <label for="simTime">Time<input type="time" id="simTime" value="10:20"></label>
+      <button type="button" class="btn" id="simGo">Preview</button>
+    </div>
+  </details>
 
   <p class="fullfoot" id="foot" hidden>This page reads your Plan Sheet. To change the plan, ask Gemini or edit the Sheet. <button type="button" class="linkbtn" id="forget">Use a different Sheet</button></p>
 </main>

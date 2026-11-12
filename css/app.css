@@ -236,7 +236,10 @@ tr:last-child td{border-bottom:0}
 .heads{font-size:.9rem;display:flex;gap:8px;align-items:baseline;background:var(--tip-bg);color:var(--tip-ink);border-radius:8px;padding:6px 10px}
 .heads .lbl{font-family:var(--f-mono);font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;flex:none}
 #nowJump{align-self:flex-start}
-details.sim{border-top:1px dashed var(--line);font-size:.9rem}
+#simLive{margin-left:auto}
+/* Preview another moment: at the bottom of the page, for trying the page out before the trip */
+details.sim{margin-top:28px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:0 16px;font-size:.9rem}
+details.sim[open]{padding-bottom:16px}
 details.sim summary{cursor:pointer;color:var(--muted);font-weight:700;min-height:var(--tap);padding-block:11px}
 .simrow{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px}
 .simrow label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:700;flex:1 1 130px;min-width:0}
