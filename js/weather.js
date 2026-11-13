@@ -10,16 +10,19 @@ export function readForecast(json, point, fetchedAt) {
   return { point, fetchedAt, hours };
 }
 
-export const forecastUrl = p => "https://api.open-meteo.com/v1/forecast"
-  + `?latitude=${p.lat}&longitude=${p.lon}&hourly=temperature_2m,precipitation_probability&timeformat=unixtime&forecast_days=16`;
+export const forecastUrl = point => "https://api.open-meteo.com/v1/forecast"
+  + `?latitude=${point.lat}&longitude=${point.lon}&hourly=temperature_2m,precipitation_probability&timeformat=unixtime&forecast_days=16`;
 
 // The feed's forecast changes every few hours, so once an hour is plenty.
-export const forecastDue = (fc, p, now) =>
-  !fc || fc.point.lat !== p.lat || fc.point.lon !== p.lon || now - fc.fetchedAt >= HOUR;
+export const forecastDue = (fc, point, now) =>
+  !fc || fc.point.lat !== point.lat || fc.point.lon !== point.lon || now - fc.fetchedAt >= HOUR;
 
 // With no reception the page keeps showing the last forecast, for up to half a day.
 const KEEP = 12 * HOUR;
 const usable = (fc, now) => fc && now - fc.fetchedAt <= KEEP;
+
+// When the shown forecast is from, once it has missed a refresh. Null while it's on time.
+export const asOf = (fc, now) => fc && now - fc.fetchedAt > 1.5 * HOUR ? fc.fetchedAt : null;
 
 // The forecast for the hour nearest a moment, or null when the forecast doesn't reach it.
 export function forecastAt(fc, ms, now) {
@@ -31,7 +34,7 @@ export function forecastAt(fc, ms, now) {
 
 // The lowest and highest temperature and the top chance of rain, from the hour nearest the
 // day's first stop to the hour nearest its last.
-export function dayOutlook(fc, from, to, now) {
+export function dayForecast(fc, from, to, now) {
   if (!usable(fc, now)) return null;
   const hours = fc.hours.filter(([t]) => t >= from - HOUR / 2 && t <= to + HOUR / 2);
   if (!hours.length) return null;
@@ -40,7 +43,7 @@ export function dayOutlook(fc, from, to, now) {
 }
 
 export const forecastText = f => `${Math.round(f.temp)}°${f.rain == null ? "" : ` · ${f.rain}% rain`}`;
-export const outlookText = o => `${Math.round(o.low)}° to ${Math.round(o.high)}°${o.rain == null ? "" : ` · rain up to ${o.rain}%`}`;
+export const dayForecastText = day => `${Math.round(day.low)}° to ${Math.round(day.high)}°${day.rain == null ? "" : ` · rain up to ${day.rain}%`}`;
 
 // The Hong Kong Observatory's warning summary. Its server turns away a request with headers of its
 // own, so the page fetches it plainly.
@@ -52,11 +55,14 @@ export function readWarnings(json, fetchedAt) {
   const inForce = w => w && w.actionCode !== "CANCEL" && w.code !== "CANCEL";
   const list = [];
   const tc = json && json.WTCSGNL, rain = json && json.WRAIN;
-  const signal = inForce(tc) && /^TC(\d+)/.exec(tc.code);
-  if (signal) list.push(`Typhoon signal ${signal[1]}`);
+  const typhoon = inForce(tc) && /^TC(\d+)/.exec(tc.code);
+  if (typhoon) list.push(`Typhoon signal ${typhoon[1]}`);
   if (inForce(rain) && RAIN[rain.code]) list.push(`${RAIN[rain.code]} rainstorm warning`);
   return { fetchedAt, list };
 }
 
-// A warning can end within the hour, so one checked more than three hours ago isn't shown.
-export const warningsAt = (w, now) => w && now - w.fetchedAt <= 3 * HOUR ? w.list : [];
+// The Observatory's warnings cover Hong Kong only, and the Weather at row turns all weather on.
+export const hasWarnings = trip => !!trip.weatherAt && trip.timeZone === "Asia/Hong_Kong";
+
+// With no reception the warnings stay up with their time, for as long as the forecast does.
+export const warningsAt = (w, now) => w && now - w.fetchedAt <= KEEP ? w.list : [];

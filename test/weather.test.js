@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readForecast, forecastAt, forecastText, dayOutlook, outlookText, forecastDue, readWarnings, warningsAt } from "../js/weather.js";
+import { readForecast, forecastAt, forecastText, dayForecast, dayForecastText, forecastDue, readWarnings, warningsAt, asOf, hasWarnings } from "../js/weather.js";
 
 const hk = hhmm => Date.parse(`2027-11-18T${hhmm}:00+08:00`);
 const POINT = { lat: 22.3, lon: 114.17 };
@@ -28,16 +28,16 @@ test("a forecast more than half a day old shows none", () => {
 });
 
 test("the day header shows the low, the high and the top chance of rain between the first and last stop", () => {
-  assert.equal(outlookText(dayOutlook(fc, hk("10:50"), hk("12:10"), hk("11:00"))), "23° to 25° · rain up to 60%");
-  assert.equal(outlookText(dayOutlook(fc, hk("09:00"), hk("23:00"), hk("11:00"))), "21° to 25° · rain up to 60%");
-  assert.equal(dayOutlook(fc, hk("15:00"), hk("18:00"), hk("11:00")), null);
-  assert.equal(dayOutlook(fc, hk("10:00"), hk("13:00"), hk("23:00")), null);
+  assert.equal(dayForecastText(dayForecast(fc, hk("10:50"), hk("12:10"), hk("11:00"))), "23° to 25° · rain up to 60%");
+  assert.equal(dayForecastText(dayForecast(fc, hk("09:00"), hk("23:00"), hk("11:00"))), "21° to 25° · rain up to 60%");
+  assert.equal(dayForecast(fc, hk("15:00"), hk("18:00"), hk("11:00")), null);
+  assert.equal(dayForecast(fc, hk("10:00"), hk("13:00"), hk("23:00")), null);
 });
 
 test("an hour with no chance of rain in the feed shows its temperature alone", () => {
   const dry = readForecast({ hourly: { ...FEED.hourly, precipitation_probability: [null, null, null, null] } }, POINT, hk("09:00"));
   assert.equal(forecastText(forecastAt(dry, hk("11:00"), hk("11:00"))), "23°");
-  assert.equal(outlookText(dayOutlook(dry, hk("10:00"), hk("13:00"), hk("11:00"))), "21° to 25°");
+  assert.equal(dayForecastText(dayForecast(dry, hk("10:00"), hk("13:00"), hk("11:00"))), "21° to 25°");
 });
 
 test("the forecast refreshes at most once an hour, and at once for a new Weather at point", () => {
@@ -72,9 +72,22 @@ test("a cancelled warning shows none", () => {
   assert.deepEqual(warningsAt(readWarnings(cancelled, hk("09:00")), hk("09:05")), []);
 });
 
-test("warnings more than three hours old show none, since one may have ended", () => {
+// With no reception a warning stays up with the time it was checked, like the forecast does, so a
+// typhoon signal never vanishes as if it had been lowered.
+test("warnings keep showing for up to half a day with no reception", () => {
   const w = readWarnings(WARNSUM, hk("09:00"));
-  assert.equal(warningsAt(w, hk("12:00")).length, 2);
-  assert.deepEqual(warningsAt(w, hk("12:01")), []);
+  assert.equal(warningsAt(w, hk("21:00")).length, 2);
+  assert.deepEqual(warningsAt(w, hk("21:01")), []);
   assert.deepEqual(warningsAt(null, hk("12:00")), []);
+});
+
+test("a forecast that couldn't refresh on time says when it's from", () => {
+  assert.equal(asOf(fc, hk("10:30")), null);
+  assert.equal(asOf(fc, hk("10:31")), hk("09:00"));
+});
+
+test("warnings show only on a Hong Kong trip that has a Weather at point", () => {
+  assert.equal(hasWarnings({ timeZone: "Asia/Hong_Kong", weatherAt: POINT }), true);
+  assert.equal(hasWarnings({ timeZone: "Asia/Hong_Kong", weatherAt: null }), false);
+  assert.equal(hasWarnings({ timeZone: "Asia/Manila", weatherAt: { lat: 14.51, lon: 121.02 } }), false);
 });
