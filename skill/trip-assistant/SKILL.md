@@ -117,7 +117,7 @@ every cell is plain text.
 | Tab | Columns | Notes |
 | --- | --- | --- |
 | `Trip` | Key, Value | Change a value, never a key. Keys below. |
-| `Days` | Day, Date, Tag, Title, Note label, Note, Note type, Bring | `Day` is the day tab's exact name (`Day 3`). `Date` is `2026-11-18`. `Tag` is one or two words. `Note type` is `tip` or `warn`. `Bring` is one item per line. |
+| `Days` | Day, Date, Tag, Title, Note label, Note, Note type, Bring, Weather at | `Day` is the day tab's exact name (`Day 3`). `Date` is `2026-11-18`. `Tag` is one or two words. `Note type` is `tip` or `warn`. `Bring` is one item per line. `Weather at` is the map point of the city where the day ends, when that isn't the Trip's city: add the column if the tab lacks it. |
 | `Bookings` | Code, Date, Type, Title, Time, Details, Bring, Status, Tickets | `Code` is `BK-01` onward. `Tickets` is one per line: `Label | https://drive.google.com/...`. No booking numbers here. |
 | `Changes` | When, Stop, What changed, Old, New | Add rows at the bottom. Never edit an old row. |
 | `Checklists` | Id, List, Item, Note, Done | `Id` is short and never reused. `List` is the list's title. `Done` is `yes` or empty. |

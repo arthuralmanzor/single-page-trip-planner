@@ -1,4 +1,4 @@
-// The Forecast for the trip's Weather at point, from the Open-Meteo feed. No key and no sign-in.
+// The Forecast at each Day's Weather at point, from the Open-Meteo feed. No key and no sign-in.
 
 const HOUR = 3600e3;
 
@@ -12,12 +12,27 @@ export function readForecast(json, point, fetchedAt) {
   return { point, fetchedAt, hours };
 }
 
-export const forecastUrl = point => "https://api.open-meteo.com/v1/forecast"
+const forecastUrl = point => "https://api.open-meteo.com/v1/forecast"
   + `?latitude=${point.lat}&longitude=${point.lon}&hourly=temperature_2m,precipitation_probability,weather_code,is_day&timeformat=unixtime&forecast_days=16`;
 
-// The feed's forecast changes every few hours, so once an hour is plenty.
-export const forecastDue = (fc, point, now) =>
-  !fc || fc.point.lat !== point.lat || fc.point.lon !== point.lon || now - fc.fetchedAt >= HOUR;
+const samePoint = (a, b) => a.lat === b.lat && a.lon === b.lon;
+
+// The forecast kept for a map point, or null.
+export const forecastForPoint = (forecasts, point) => (point && forecasts.find(fc => samePoint(fc.point, point))) || null;
+
+// The forecasts to keep: one for each point the days use, with `get` fetching the feed's answer.
+// The feed's forecast changes every few hours, so a point's is fetched again once it's an hour
+// old, and kept when that fails.
+export async function refreshForecasts(forecasts, days, now, get) {
+  const points = [];
+  for (const d of days) if (d.weatherAt && !points.some(p => samePoint(p, d.weatherAt))) points.push(d.weatherAt);
+  const list = await Promise.all(points.map(async point => {
+    const old = forecastForPoint(forecasts, point);
+    if (old && now - old.fetchedAt < HOUR) return old;
+    try { return readForecast(await get(forecastUrl(point)), point, now) || old; } catch (e) { return old; }
+  }));
+  return list.filter(Boolean);
+}
 
 // With no reception the page keeps showing the last forecast, for up to half a day.
 const KEEP = 12 * HOUR;
@@ -78,8 +93,8 @@ export function readWarnings(json, fetchedAt) {
   return { fetchedAt, list };
 }
 
-// The Observatory's warnings cover Hong Kong only, and the Weather at row turns all weather on.
-export const hasWarnings = trip => !!trip.weatherAt && trip.timeZone === "Asia/Hong_Kong";
+// The Observatory's warnings cover Hong Kong only, and a Weather at point turns all weather on.
+export const hasWarnings = (trip, days) => trip.timeZone === "Asia/Hong_Kong" && days.some(d => d.weatherAt);
 
 // With no reception the warnings stay up with their time, for as long as the forecast does.
 export const warningsAt = (w, now) => w && now - w.fetchedAt <= KEEP ? w.list : [];
