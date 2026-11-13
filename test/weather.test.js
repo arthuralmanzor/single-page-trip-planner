@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readForecast, forecastAt, forecastText, dayForecast, dayForecastText, forecastDue, readWarnings, warningsAt, asOf, hasWarnings, forecastIcon } from "../js/weather.js";
+import { readForecast, refreshForecasts, forecastForPoint, forecastAt, forecastText, dayForecast, dayForecastText, readWarnings, warningsAt, asOf, hasWarnings, forecastIcon } from "../js/weather.js";
 
 const hk = hhmm => Date.parse(`2027-11-18T${hhmm}:00+08:00`);
 const POINT = { lat: 22.3, lon: 114.17 };
@@ -43,11 +43,59 @@ test("an hour with no chance of rain in the feed shows its temperature alone", (
   assert.equal(dayForecastText(dayForecast(dry, hk("10:00"), hk("13:00"), hk("11:00"))), "21° to 25°");
 });
 
-test("the forecast refreshes at most once an hour, and at once for a new Weather at point", () => {
-  assert.equal(forecastDue(null, POINT, hk("09:00")), true);
-  assert.equal(forecastDue(fc, POINT, hk("09:59")), false);
-  assert.equal(forecastDue(fc, POINT, hk("10:00")), true);
-  assert.equal(forecastDue(fc, { lat: 14.51, lon: 121.02 }, hk("09:10")), true);
+const TOKYO = { lat: 35.68, lon: 139.76 }, KYOTO = { lat: 35.01, lon: 135.77 };
+// A stand-in for the feed, with Tokyo at 12° and Kyoto at 9°. It lists the points it's asked for.
+function feed() {
+  const asked = [];
+  const get = async url => {
+    const point = [TOKYO, KYOTO].find(p => url.includes(`latitude=${p.lat}&longitude=${p.lon}&`));
+    asked.push(point);
+    return { hourly: { ...FEED.hourly, temperature_2m: FEED.hourly.time.map(() => point === TOKYO ? 12 : 9) } };
+  };
+  return { get, asked };
+}
+
+test("each day's stops show the forecast at the day's point, fetched once for each point", async () => {
+  const { get, asked } = feed();
+  const days = [{ weatherAt: TOKYO }, { weatherAt: KYOTO }, { weatherAt: { ...KYOTO } }, { weatherAt: null }];
+  const list = await refreshForecasts([], days, hk("09:00"), get);
+  assert.deepEqual(asked, [TOKYO, KYOTO]);
+  assert.equal(forecastText(forecastAt(forecastForPoint(list, TOKYO), hk("11:00"), hk("11:00"))), "12° · 20% rain");
+  assert.equal(forecastText(forecastAt(forecastForPoint(list, KYOTO), hk("11:00"), hk("11:00"))), "9° · 20% rain");
+  assert.equal(forecastForPoint(list, null), null);
+});
+
+test("a point's forecast is fetched again only once it's an hour old", async () => {
+  const days = [{ weatherAt: TOKYO }, { weatherAt: KYOTO }];
+  const kyoto = await refreshForecasts([], [{ weatherAt: KYOTO }], hk("09:00"), feed().get);
+  // At 9:59 Tokyo has none yet, and Kyoto's from 9:00 stays as it is.
+  const soon = feed(), list = await refreshForecasts(kyoto, days, hk("09:59"), soon.get);
+  assert.deepEqual(soon.asked, [TOKYO]);
+  assert.equal(forecastForPoint(list, KYOTO), forecastForPoint(kyoto, KYOTO));
+  // At 10:00 Kyoto's is an hour old, and Tokyo's is a minute old.
+  const later = feed();
+  await refreshForecasts(list, days, hk("10:00"), later.get);
+  assert.deepEqual(later.asked, [KYOTO]);
+});
+
+test("a point whose forecast can't be fetched keeps its last one, and the other points still refresh", async () => {
+  const days = [{ weatherAt: TOKYO }, { weatherAt: KYOTO }];
+  const old = await refreshForecasts([], days, hk("09:00"), feed().get);
+  const { get } = feed();
+  const noKyoto = async url => { if (url.includes(`latitude=${KYOTO.lat}&`)) throw new Error("offline"); return get(url); };
+  const busy = async url => url.includes(`latitude=${KYOTO.lat}&`) ? { error: true, reason: "Too many requests" } : get(url);
+  for (const fetchFeed of [noKyoto, busy]) {
+    const list = await refreshForecasts(old, days, hk("10:30"), fetchFeed);
+    assert.equal(forecastForPoint(list, KYOTO), forecastForPoint(old, KYOTO));
+    assert.equal(forecastForPoint(list, TOKYO).fetchedAt, hk("10:30"));
+  }
+});
+
+test("a point no day uses any more is dropped, and with none there's no forecast", async () => {
+  const old = await refreshForecasts([], [{ weatherAt: TOKYO }, { weatherAt: KYOTO }], hk("09:00"), feed().get);
+  const list = await refreshForecasts(old, [{ weatherAt: TOKYO }], hk("09:30"), feed().get);
+  assert.deepEqual(list.map(fc => fc.point), [TOKYO]);
+  assert.deepEqual(await refreshForecasts(old, [{ weatherAt: null }], hk("09:30"), feed().get), []);
 });
 
 test("a feed answer that isn't a forecast is ignored", () => {
@@ -89,10 +137,11 @@ test("a forecast that couldn't refresh on time says when it's from", () => {
   assert.equal(asOf(fc, hk("10:31")), hk("09:00"));
 });
 
-test("warnings show only on a Hong Kong trip that has a Weather at point", () => {
-  assert.equal(hasWarnings({ timeZone: "Asia/Hong_Kong", weatherAt: POINT }), true);
-  assert.equal(hasWarnings({ timeZone: "Asia/Hong_Kong", weatherAt: null }), false);
-  assert.equal(hasWarnings({ timeZone: "Asia/Manila", weatherAt: { lat: 14.51, lon: 121.02 } }), false);
+test("warnings show only on a Hong Kong trip that has a Weather at point, on the Trip tab or a day", () => {
+  const hkTrip = { timeZone: "Asia/Hong_Kong" };
+  assert.equal(hasWarnings(hkTrip, [{ weatherAt: null }, { weatherAt: POINT }]), true);
+  assert.equal(hasWarnings(hkTrip, [{ weatherAt: null }]), false);
+  assert.equal(hasWarnings({ timeZone: "Asia/Manila" }, [{ weatherAt: { lat: 14.51, lon: 121.02 } }]), false);
 });
 
 test("each hour's icon shows its weather, by day and by night", () => {

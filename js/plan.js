@@ -223,6 +223,9 @@ export function readPlan(tabs) {
       problems.push({ where: "Days", text: `${r.Day} has the date "${r.Date}", which isn't in the 2026-11-18 form.` });
       continue;
     }
+    const weatherAt = r["Weather at"] ? readPoint(r["Weather at"]) : trip.weatherAt;
+    if (r["Weather at"] && !weatherAt)
+      problems.push({ where: "Days", text: `${r.Day} has the Weather at value "${r["Weather at"]}", which isn't a map point like 22.30, 114.17.` });
     const day = {
       id: "d" + n, n, name: r.Day, date: r.Date,
       dow: new Date(noon).toLocaleDateString("en-US", { weekday: "short", timeZone: tz }),
@@ -230,6 +233,7 @@ export function readPlan(tabs) {
       tag: r.Tag || "", title: r.Title || "",
       banner: r.Note ? { label: r["Note label"] || "", text: r.Note, type: r["Note type"] === "warn" ? "warn" : "tip" } : null,
       bring: lines(r.Bring),
+      weatherAt,
       stops: [],
     };
     day.stops = readStops(tabs[r.Day], day, tz, problems, booked);

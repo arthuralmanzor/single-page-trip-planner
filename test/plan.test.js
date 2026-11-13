@@ -201,6 +201,29 @@ test("a Weather at value that isn't a map point is flagged, and no weather shows
   }
 });
 
+// The Days tab with a Weather at column, holding `value` for Day 3.
+const daysWeatherAt = value => DAYS.replace(`"Bring"`, `"Bring","Weather at"`) + `,"${value}"`;
+
+test("a day's Weather at in the Days tab is the map point its forecast is for", () => {
+  const plan = readPlan({ ...day3(), Trip: TRIP + `\n"Weather at","35.68, 139.76"`, Days: daysWeatherAt("35.01, 135.77") });
+  assert.deepEqual(plan.days[0].weatherAt, { lat: 35.01, lon: 135.77 });
+  assert.deepEqual(plan.problems, []);
+});
+
+test("a day with no Weather at of its own uses the Trip tab's", () => {
+  const tokyo = TRIP + `\n"Weather at","35.68, 139.76"`;
+  assert.deepEqual(readPlan({ ...day3(), Trip: tokyo, Days: daysWeatherAt("") }).days[0].weatherAt, { lat: 35.68, lon: 139.76 });
+  assert.deepEqual(readPlan({ ...day3(), Trip: tokyo }).days[0].weatherAt, { lat: 35.68, lon: 139.76 });
+  assert.equal(readPlan(day3()).days[0].weatherAt, null);
+});
+
+// The Trip tab's point is another city's, so the day shows no weather rather than the wrong one.
+test("a day's Weather at that isn't a map point is flagged, and that day shows no weather", () => {
+  const plan = readPlan({ ...day3(), Trip: TRIP + `\n"Weather at","35.68, 139.76"`, Days: daysWeatherAt("Kyoto") });
+  assert.equal(plan.days[0].weatherAt, null);
+  assert.deepEqual(plan.problems, [{ where: "Days", text: `Day 3 has the Weather at value "Kyoto", which isn't a map point like 22.30, 114.17.` }]);
+});
+
 test("a stop that names a booking the Bookings tab doesn't have is flagged", () => {
   const BOOKINGS = `"Code","Date","Type","Title","Time","Details","Bring","Status","Tickets"\n"BK-05","2027-11-18","Tickets","Peak Tram","","","","",""`;
   const plan = readPlan({ ...day3(`"D3-07","16:45","key","Peak Tram up","","","","","","","","BK-05, BK-99","",""`), Bookings: BOOKINGS });

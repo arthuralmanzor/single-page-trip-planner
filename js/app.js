@@ -3,7 +3,7 @@ import { tripClock, stopKey } from "./clock.js";
 import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs, familyLink, sheetFromFamilyLink } from "./sheets.js";
-import { forecastUrl, forecastDue, readForecast, forecastAt, forecastText, dayForecast, dayForecastText, forecastIcon, asOf, WARNINGS_URL, readWarnings, hasWarnings, warningsAt } from "./weather.js";
+import { refreshForecasts, forecastForPoint, forecastAt, forecastText, dayForecast, dayForecastText, forecastIcon, asOf, WARNINGS_URL, readWarnings, hasWarnings, warningsAt } from "./weather.js";
 
 /* ---------- Helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -96,7 +96,8 @@ function focusDay(st) { return (!fresh(st) && st.next) ? st.next.d : st.cur.d; }
 
 /* ---------- Weather: the Forecast at each stop's time, and the Warnings in force ---------- */
 const WEATHER = "trip-weather", WARNINGS = "trip-warnings";
-let FORECAST = store.get(WEATHER), IN_FORCE = store.get(WARNINGS);
+// One forecast for each day's point. A phone saved a single forecast before days had points.
+let FORECASTS = [].concat(store.get(WEATHER) || []), IN_FORCE = store.get(WARNINGS);
 // A feed that never answers would hold the next check up, so each fetch gives up after 15 seconds.
 async function getJSON(url) {
   const stop = new AbortController(), t = setTimeout(() => stop.abort(), 15000);
@@ -111,15 +112,9 @@ async function loadWeather() {
   if (weatherBusy || !TRIP) return;
   weatherBusy = true;
   try {
-    const point = TRIP.weatherAt;
-    if (!point) { FORECAST = null; store.drop(WEATHER); }
-    else if (forecastDue(FORECAST, point, Date.now())) {
-      try {
-        const fc = readForecast(await getJSON(forecastUrl(point)), point, Date.now());
-        if (fc) { FORECAST = fc; store.set(WEATHER, fc); }
-      } catch (e) {}
-    }
-    if (!hasWarnings(TRIP)) { IN_FORCE = null; store.drop(WARNINGS); }
+    FORECASTS = await refreshForecasts(FORECASTS, DAYS, Date.now(), getJSON);
+    if (FORECASTS.length) store.set(WEATHER, FORECASTS); else store.drop(WEATHER);
+    if (!hasWarnings(TRIP, DAYS)) { IN_FORCE = null; store.drop(WARNINGS); }
     else {
       try { IN_FORCE = readWarnings(await getJSON(WARNINGS_URL), Date.now()); store.set(WARNINGS, IN_FORCE); } catch (e) {}
     }
@@ -143,21 +138,22 @@ const iconHTML = f => {
   const icon = ICONS[forecastIcon(f)];
   return icon ? `<svg viewBox="0 0 24 24" aria-hidden="true">${icon[1]}</svg><span class="sr">${icon[0]}. </span>` : "";
 };
-const forecastFor = ms => forecastAt(FORECAST, ms, Date.now());
+const forecastForDay = d => forecastForPoint(FORECASTS, d && d.weatherAt);
 // The now card has no time column, so its icon goes in front of the numbers.
-const forecastHTML = ms => { const f = forecastFor(ms); return f ? `<span class="forecast">${iconHTML(f)}${esc(forecastText(f))}</span>` : ""; };
+const forecastHTML = (d, ms) => { const f = forecastAt(forecastForDay(d), ms, Date.now()); return f ? `<span class="forecast">${iconHTML(f)}${esc(forecastText(f))}</span>` : ""; };
 /* Fills in the day's weather without drawing the day again, so a note being typed keeps its
    keyboard. The stop the family is at shows the weather now, as the now card does. */
 function applyWeather(st = tripState()) {
+  const now = Date.now(), fc = forecastForDay(dayById(selDay));
   document.querySelectorAll("#dayView li[data-stop-at]").forEach(li => {
-    const f = forecastFor(li.classList.contains("now") ? st.ms : +li.dataset.stopAt);
+    const f = forecastAt(fc, li.classList.contains("now") ? st.ms : +li.dataset.stopAt, now);
     const line = li.querySelector(".forecast"), icon = li.querySelector(".weather-icon");
     line.textContent = f ? forecastText(f) : ""; line.hidden = !f;
     icon.innerHTML = f ? iconHTML(f) : ""; icon.hidden = !icon.innerHTML;
   });
-  const now = Date.now(), day = $("#dayView .day-forecast");
+  const day = $("#dayView .day-forecast");
   if (day) {
-    const f = dayForecast(FORECAST, +day.dataset.firstStopAt, +day.dataset.lastStopAt, now), old = asOf(FORECAST, now);
+    const f = dayForecast(fc, +day.dataset.firstStopAt, +day.dataset.lastStopAt, now), old = asOf(fc, now);
     day.textContent = f ? dayForecastText(f) + (old ? ` · as of ${savedWhen(old)}` : "") : ""; day.hidden = !f;
   }
   const list = warningsAt(IN_FORCE, now), box = $("#warnings");
@@ -304,7 +300,7 @@ function renderNow(st = tripState()) {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip mode</span>${simTag}</div>
       <h3 class="now-title">${until(f.t - st.ms).replace(/^in /, "")} to go</h3>
       <p class="now-sub">From ${esc(fmtDate(f.t))}, this card shows where you should be, what's next and how to get there. Open the page on the day and it follows the plan by the clock.</p>
-      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span>${markHTML(stopKey(f.d, f.s))}<h4>${esc(f.s.title)}</h4>${forecastHTML(f.t)}</div>`;
+      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span>${markHTML(stopKey(f.d, f.s))}<h4>${esc(f.s.title)}</h4>${forecastHTML(f.d, f.t)}</div>`;
   } else if (st.phase === "after") {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip complete</span>${simTag}</div><h3 class="now-title">Welcome home</h3><p class="now-sub">The full plan stays here for the photos and the memories.</p>`;
   } else {
@@ -314,13 +310,13 @@ function renderNow(st = tripState()) {
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
     const stop = stopHTML(cur.s);
     box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span>${liveBtn}</div>
-      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3>${forecastHTML(ms)}</div>
+      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3>${forecastHTML(cur.d, ms)}</div>
       ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
       ${next && isFresh ? `<div class="now-bar" role="progressbar" aria-label="Time until the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}
       ${next ? `<div class="now-next">
         <span class="lbl">${next.s.kind === "travel" ? "Leave" : "Next"} ${sameDay ? "" : `${esc(fmtDow(next.t))} `}${fmtClock(next.t)} · ${until(next.t - ms)}</span>
-        ${markHTML(stopKey(next.d, next.s))}<h4>${esc(next.s.title)}</h4>${forecastHTML(next.t)}
+        ${markHTML(stopKey(next.d, next.s))}<h4>${esc(next.s.title)}</h4>${forecastHTML(next.d, next.t)}
         ${legsHTML(next.s)}
         ${heads ? `<div class="heads"><span class="lbl">Heads-up</span><span>${esc(heads)}</span></div>` : ""}
       </div>` : `<p class="now-sub">That's the last stop of the trip.</p>`}
@@ -548,7 +544,7 @@ function renderAll() {
   if (!DAYS.some(d => d.id === selDay)) selDay = DAYS[0] ? DAYS[0].id : null;
   $("#v-setup").hidden = true;
   ["#tabbar", "#syncStatus", "#share", "#simBox", "#foot"].forEach(s => { $(s).hidden = false; });
-  $("#weatherCredit").hidden = !TRIP.weatherAt; $("#hkoCredit").hidden = !hasWarnings(TRIP);
+  $("#weatherCredit").hidden = !DAYS.some(d => d.weatherAt); $("#hkoCredit").hidden = !hasWarnings(TRIP, DAYS);
   renderProblems(); renderSim(); renderStrip(st); renderDay(); renderNow(st);
   renderChecks(); renderPharmacy(); renderBookings(); renderInfo(); route();
 }
