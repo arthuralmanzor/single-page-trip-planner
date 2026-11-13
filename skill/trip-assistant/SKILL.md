@@ -60,7 +60,8 @@ Reading too much at once makes a reply fail. Open the least that answers the req
 - Never read all the day tabs to answer one question. `Days` has each day's title and note, and
   that is enough to pick the right tab.
 - Don't open `Trip` again once you have the links in this chat.
-- Don't open the Changes Sheet to read it. Only add a row to it.
+- Don't read the whole Changes Sheet. Add rows to it, and read only its last few rows before a job
+  of several steps.
 
 **A job that spans more than that**
 
@@ -77,6 +78,20 @@ hold both tabs open and compare them line by line.
 
 If a reply fails, try again with a smaller step: one stop, or one row.
 
+## When someone else edits too
+
+The user, the family or another AI can change a Sheet between your read and your write.
+
+- Read a tab right before you write to it. In a job of several tabs, read each tab again when you
+  reach it, not all of them at the start.
+- Change only the cells your change touches. To change part of a long cell, start from the text
+  that is in the cell now and change only the words that need it. Never write a cell back from an
+  older copy, a summary or a brief.
+- If a cell isn't what you expected, someone changed it. Keep their change and fit yours around
+  it. If the two can't both stand, ask the user which one wins.
+- Before a job of several steps, read the last few rows of the Changes Sheet to see what changed
+  since you last looked.
+
 ## The day tabs
 
 One row per stop. The first row is the headings: never edit, reorder, add or remove a column.
@@ -85,7 +100,7 @@ Every cell is plain text.
 | Column | What goes in it | Example |
 | --- | --- | --- |
 | Code | The stop's fixed name. Never change it once given. | `D3-05` |
-| Time | 24-hour clock. A stop the day before the tab's date carries its date. | `16:30`, `Nov 15 13:45` |
+| Time | One time, on the 24-hour clock. A stop the day before the tab's date carries its date. | `16:30`, `Nov 15 13:45` |
 | Kind | One of `travel`, `key`, `visit`, `food` | `travel` |
 | Stop | The stop's short name | `Peak Tram up` |
 | Details | What to do there, in a sentence or two | |
@@ -108,6 +123,13 @@ Leave it off when you can't find it.
   whatever its time. Add it as a new row at the bottom. The site lists stops by time.
 - **Never renumber** the other stops. A code means the same stop for the whole trip.
 - **A dropped stop**: delete its row. Its code is not reused.
+- **Two options at different times** are two stops, each on its own row with its own time. A Time
+  cell never holds two times.
+- **A fare** is what the family pays the way they pay: with the transit card if they carry one,
+  not a paper ticket. Take it from the operator's own fare table and name the fare, like
+  `HK$13.20 adult with Octopus`. A map app often shows the paper-ticket price.
+- **Words in a cell** are read on the site, which shows no rows, cells or columns. Name a stop by
+  its name, its code or as "the next stop", never as "row 8" or "E10".
 
 ## The other tabs and Sheets
 
@@ -119,7 +141,7 @@ every cell is plain text.
 | `Trip` | Key, Value | Change a value, never a key. Keys below. |
 | `Days` | Day, Date, Tag, Title, Note label, Note, Note type, Bring, Weather at | `Day` is the day tab's exact name (`Day 3`). `Date` is `2026-11-18`. `Tag` is one or two words. `Note type` is `tip` or `warn`. `Bring` is one item per line. `Weather at` is the map point of the city where the day ends, when that isn't the Trip's city: add the column if the tab lacks it. |
 | `Bookings` | Code, Date, Type, Title, Time, Details, Bring, Status, Tickets | `Code` is `BK-01` onward. `Tickets` is one per line: `Label | https://drive.google.com/...`. No booking numbers here. |
-| `Changes` | When, Stop, What changed, Old, New | Add rows at the bottom. Never edit an old row. |
+| `Changes` | When, Stop, What changed, Old, New | Add rows at the bottom, one per cell changed. Never edit an old row. |
 | `Checklists` | Id, List, Item, Note, Done | `Id` is short and never reused. `List` is the list's title. `Done` is `yes` or empty. |
 | `Pharmacy` | Id, Group, Name, Qty, For, Who, How, Careful, Pack | One row per medicine. |
 | `Pharmacy notes` | Where, Text | `Where` is `Intro`, `Also`, `Good to know`, or a group's title. |
@@ -162,14 +184,24 @@ cell empty and say what's missing.
 1. Read the day's tab.
 2. Check the knock-on effects before writing: travel time to the next stop, meals, opening hours,
    rest for the older travelers, the kids' bedtime, and the next morning's start. Move the stops
-   after it if they no longer fit, and say so.
-3. Write the cells.
-4. Add a row to the Changes Sheet: When (`2026-11-18 14:05`), Stop, What changed (the column),
-   Old, New. One row per cell changed.
-5. Reply with the updated part of the day as a short timed list with stop codes, then the cells
+   before and after it if they no longer fit, and say so.
+3. Check the rest of the stop's row. When its time, place or purpose changes, its Leaves, Arrives,
+   Route, Wait, Tip, Places and Summary must still describe it. A stop that became a walk has no
+   train route left in it.
+4. Write the cells.
+5. Add a row to the Changes Sheet: When (`2026-11-18 14:05`), Stop, What changed (the column),
+   Old, New. One row per cell changed, never one row for a batch: `Stop` holds one code and
+   `What changed` one column.
+6. Read the rows you changed once more. Each must keep to the formats above and agree with the
+   stops around it.
+7. Reply with the updated part of the day as a short timed list with stop codes, then the cells
    you changed.
 
-A row the site can't read shows there in red, so keep to the formats above.
+The same fact can sit in other places: the day's Note and Bring in `Days`, the `Bookings` tab, the
+`Info` tab, another day. Say which ones mention it, and bring them in line as the next steps.
+
+A row the site can't read shows there in red, so keep to the formats above. After a job of several
+steps, ask the user to open the site: a red box at the top lists anything it can't read.
 
 ## Answering
 
