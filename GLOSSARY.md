@@ -60,8 +60,8 @@ _Avoid_: invite, share code
 ## Weather
 
 **Forecast**:
-The temperature and chance of rain expected at a Stop's time, or across a Day's stops, at one point
-that stands for the whole trip. Not part of the Plan.
+The sky, temperature and chance of rain expected at a Stop's time, or across a Day's stops, at one
+point that stands for the whole trip. Not part of the Plan.
 _Avoid_: weather report, conditions
 
 **Warning**:

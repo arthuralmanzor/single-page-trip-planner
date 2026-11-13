@@ -1,14 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readForecast, forecastAt, forecastText, dayForecast, dayForecastText, forecastDue, readWarnings, warningsAt, asOf, hasWarnings } from "../js/weather.js";
+import { readForecast, forecastAt, forecastText, dayForecast, dayForecastText, forecastDue, readWarnings, warningsAt, asOf, hasWarnings, forecastIcon } from "../js/weather.js";
 
 const hk = hhmm => Date.parse(`2027-11-18T${hhmm}:00+08:00`);
 const POINT = { lat: 22.3, lon: 114.17 };
-// The forecast feed's answer: each hour in seconds, its temperature and its chance of rain.
+// The forecast feed's answer: each hour in seconds, its temperature, its chance of rain, its
+// weather as a WMO code (0 clear, 2 partly cloudy, 3 overcast, 61 rain) and whether it's daytime.
 const FEED = { hourly: {
   time: ["10:00", "11:00", "12:00", "13:00"].map(t => hk(t) / 1000),
   temperature_2m: [21.4, 22.6, 24.5, 23.0],
   precipitation_probability: [10, 20, 60, 40],
+  weather_code: [0, 2, 61, 3],
+  is_day: [1, 1, 1, 1],
 } };
 const fc = readForecast(FEED, POINT, hk("09:00"));
 
@@ -90,4 +93,31 @@ test("warnings show only on a Hong Kong trip that has a Weather at point", () =>
   assert.equal(hasWarnings({ timeZone: "Asia/Hong_Kong", weatherAt: POINT }), true);
   assert.equal(hasWarnings({ timeZone: "Asia/Hong_Kong", weatherAt: null }), false);
   assert.equal(hasWarnings({ timeZone: "Asia/Manila", weatherAt: { lat: 14.51, lon: 121.02 } }), false);
+});
+
+test("each hour's icon shows its weather, by day and by night", () => {
+  assert.equal(forecastIcon(forecastAt(fc, hk("10:00"), hk("10:00"))), "sun");
+  assert.equal(forecastIcon(forecastAt(fc, hk("11:00"), hk("10:00"))), "sun-cloud");
+  assert.equal(forecastIcon(forecastAt(fc, hk("12:00"), hk("10:00"))), "rain");
+  assert.equal(forecastIcon(forecastAt(fc, hk("13:00"), hk("10:00"))), "cloud");
+  const at = (code, more) => forecastIcon({ temp: 22, rain: 10, code, day: true, ...more });
+  assert.equal(at(0, { day: false }), "moon");
+  assert.equal(at(2, { day: false }), "cloud");
+  assert.equal(at(45), "fog");
+  assert.equal(at(95), "storm");
+  assert.equal(at(null), null);
+});
+
+test("a likely shower shows rain, and rain or a storm shows before heat or cold", () => {
+  assert.equal(forecastIcon({ temp: 22, rain: 50, code: 3, day: true }), "rain");
+  assert.equal(forecastIcon({ temp: 22, rain: 49, code: 3, day: true }), "cloud");
+  assert.equal(forecastIcon({ temp: 34, rain: 60, code: 0, day: true }), "rain");
+  assert.equal(forecastIcon({ temp: 11, rain: 10, code: 95, day: true }), "storm");
+});
+
+test("33° and up shows very hot, and 12° and down shows cold", () => {
+  assert.equal(forecastIcon({ temp: 33, rain: 0, code: 0, day: true }), "hot");
+  assert.equal(forecastIcon({ temp: 32.4, rain: 0, code: 0, day: true }), "sun");
+  assert.equal(forecastIcon({ temp: 12, rain: 0, code: 3, day: false }), "cold");
+  assert.equal(forecastIcon({ temp: 12.6, rain: 0, code: 3, day: false }), "cloud");
 });

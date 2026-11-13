@@ -3,7 +3,7 @@ import { tripClock, stopKey } from "./clock.js";
 import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs, familyLink, sheetFromFamilyLink } from "./sheets.js";
-import { forecastUrl, forecastDue, readForecast, forecastAt, forecastText, dayForecast, dayForecastText, asOf, WARNINGS_URL, readWarnings, hasWarnings, warningsAt } from "./weather.js";
+import { forecastUrl, forecastDue, readForecast, forecastAt, forecastText, dayForecast, dayForecastText, forecastIcon, asOf, WARNINGS_URL, readWarnings, hasWarnings, warningsAt } from "./weather.js";
 
 /* ---------- Helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -126,14 +126,34 @@ async function loadWeather() {
   } finally { weatherBusy = false; }
   applyWeather(); renderNow();
 }
-const forecastLine = ms => { const f = forecastAt(FORECAST, ms, Date.now()); return f ? forecastText(f) : ""; };
-const forecastHTML = ms => { const line = forecastLine(ms); return line ? `<span class="forecast">${esc(line)}</span>` : ""; };
+// Drawn on a 24 by 24 grid in the line style of the page's other icons. A part with the "back"
+// class is filled with what's behind the icon, so the cloud covers the sun.
+const ICONS = {
+  sun: ["Sunny", '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>'],
+  moon: ["Clear night", '<path d="M9.5 4.5A8 8 0 1 0 19.5 14.5A8 8 0 0 1 9.5 4.5z"/>'],
+  "sun-cloud": ["Partly cloudy", '<circle cx="8.5" cy="8.5" r="3"/><path d="M8.5 2.5v1.3M2.5 8.5h1.3M4.3 4.3l.9.9M12.7 4.3l-.9.9M4.3 12.7l.9-.9"/><path class="back" d="M10 20.5a3.7 3.7 0 0 1-.3-7.19A4.8 4.8 0 0 1 18.6 12.4 4.1 4.1 0 0 1 18 20.5z"/>'],
+  cloud: ["Cloudy", '<path d="M7 19a4.5 4.5 0 0 1-.4-8.98A6 6 0 0 1 18 9.6 4.8 4.8 0 0 1 17 19z"/>'],
+  fog: ["Fog", '<path d="M4 8h16M2.5 12h19M4 16h16M7 20h10"/>'],
+  rain: ["Rain", '<path d="M7 15a4 4 0 0 1-.4-7.98A5.5 5.5 0 0 1 17.2 6.2 4.5 4.5 0 0 1 16.8 15z"/><path d="M8.5 18l-1 2.5M12.5 18l-1 2.5M16.5 18l-1 2.5"/>'],
+  storm: ["Thunderstorm", '<path d="M7 15a4 4 0 0 1-.4-7.98A5.5 5.5 0 0 1 17.2 6.2 4.5 4.5 0 0 1 16.8 15z"/><path d="M13 16.5l-2.5 3.5h3l-2.5 3.5"/>'],
+  hot: ["Very hot", '<path d="M9 14.2V5a2.5 2.5 0 0 1 5 0v9.2a4 4 0 1 1-5 0z"/><path d="M11.5 16.5V7M17.5 5.5l2-1.5M18 9.5h2.5M17.5 13.5l2 1.5"/>'],
+  cold: ["Cold", '<path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5M9.5 4.5l2.5 2 2.5-2M9.5 19.5l2.5-2 2.5 2"/>'],
+};
+const iconHTML = f => {
+  const icon = ICONS[forecastIcon(f)];
+  return icon ? `<svg viewBox="0 0 24 24" aria-hidden="true">${icon[1]}</svg><span class="sr">${icon[0]}. </span>` : "";
+};
+const forecastFor = ms => forecastAt(FORECAST, ms, Date.now());
+// The now card has no time column, so its icon goes in front of the numbers.
+const forecastHTML = ms => { const f = forecastFor(ms); return f ? `<span class="forecast">${iconHTML(f)}${esc(forecastText(f))}</span>` : ""; };
 /* Fills in the day's weather without drawing the day again, so a note being typed keeps its
    keyboard. The stop the family is at shows the weather now, as the now card does. */
 function applyWeather(st = tripState()) {
-  document.querySelectorAll("#dayView .forecast[data-stop-at]").forEach(el => {
-    const line = forecastLine(el.closest("li.now") ? st.ms : +el.dataset.stopAt);
-    el.textContent = line; el.hidden = !line;
+  document.querySelectorAll("#dayView li[data-stop-at]").forEach(li => {
+    const f = forecastFor(li.classList.contains("now") ? st.ms : +li.dataset.stopAt);
+    const line = li.querySelector(".forecast"), icon = li.querySelector(".weather-icon");
+    line.textContent = f ? forecastText(f) : ""; line.hidden = !f;
+    icon.innerHTML = f ? iconHTML(f) : ""; icon.hidden = !icon.innerHTML;
   });
   const now = Date.now(), day = $("#dayView .day-forecast");
   if (day) {
@@ -198,9 +218,9 @@ const COPY_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4a
 const copyHTML = (d, s) => `<button type="button" class="copy" data-stop-line="${esc(stopLine(d, s))}">${s.code ? `<span class="sr">Copy </span>${esc(s.code)}` : "Copy"}${COPY_ICON}</button>`;
 const markHTML = k => NEWS.marks[k] ? `<span class="chg ${NEWS.marks[k]}" data-changed="${esc(k)}">${NEWS.marks[k] === "new" ? "New" : "Updated"}</span>` : "";
 function timelineHTML(d) {
-  return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}">
-      <span class="time">${esc(s.time)}<span class="code">${esc(s.code)}</span>${copyHTML(d, s)}</span><span class="rail"><span class="node"></span></span>
-      <div class="body"><span class="state" aria-live="polite"></span>${markHTML(stopKey(d, s))}${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>${s.at != null ? `<span class="forecast" data-stop-at="${s.at}" hidden></span>` : ""}
+  return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}"${s.at != null ? ` data-stop-at="${s.at}"` : ""}>
+      <span class="time">${esc(s.time)}${s.at != null ? '<span class="weather-icon" hidden></span>' : ""}<span class="code">${esc(s.code)}</span>${copyHTML(d, s)}</span><span class="rail"><span class="node"></span></span>
+      <div class="body"><span class="state" aria-live="polite"></span>${markHTML(stopKey(d, s))}${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>${s.at != null ? '<span class="forecast" hidden></span>' : ""}
         ${s.problems.map(p => `<div class="badnote">Fix in the Sheet: ${esc(p)}</div>`).join("")}
         ${stopHTML(s)}
       </div></li>`).join("")}</ol>`;

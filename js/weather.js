@@ -2,16 +2,18 @@
 
 const HOUR = 3600e3;
 
-// What the page keeps of the feed's answer: each hour as [ms, temperature, chance of rain].
+// What the page keeps of the feed's answer: each hour as
+// [ms, temperature, chance of rain, WMO weather code, 1 by day or 0 by night].
 export function readForecast(json, point, fetchedAt) {
   const h = json && json.hourly;
   if (!h || !Array.isArray(h.time)) return null;
-  const hours = h.time.map((t, i) => [t * 1000, h.temperature_2m[i], h.precipitation_probability[i]]);
+  const at = (list, i) => (list && list[i] != null ? list[i] : null);
+  const hours = h.time.map((t, i) => [t * 1000, h.temperature_2m[i], at(h.precipitation_probability, i), at(h.weather_code, i), at(h.is_day, i)]);
   return { point, fetchedAt, hours };
 }
 
 export const forecastUrl = point => "https://api.open-meteo.com/v1/forecast"
-  + `?latitude=${point.lat}&longitude=${point.lon}&hourly=temperature_2m,precipitation_probability&timeformat=unixtime&forecast_days=16`;
+  + `?latitude=${point.lat}&longitude=${point.lon}&hourly=temperature_2m,precipitation_probability,weather_code,is_day&timeformat=unixtime&forecast_days=16`;
 
 // The feed's forecast changes every few hours, so once an hour is plenty.
 export const forecastDue = (fc, point, now) =>
@@ -29,7 +31,22 @@ export function forecastAt(fc, ms, now) {
   if (!usable(fc, now)) return null;
   let best = null;
   for (const hr of fc.hours) if (!best || Math.abs(hr[0] - ms) < Math.abs(best[0] - ms)) best = hr;
-  return best && Math.abs(best[0] - ms) <= HOUR / 2 ? { temp: best[1], rain: best[2] } : null;
+  return best && Math.abs(best[0] - ms) <= HOUR / 2 ? { temp: best[1], rain: best[2], code: best[3], day: best[4] !== 0 } : null;
+}
+
+// The icon for an hour's forecast. What changes the family's plans comes first: a storm or rain,
+// then heat or cold, then the sky. The feed's weather codes are WMO's.
+export function forecastIcon(f) {
+  const { code, rain, day } = f, temp = Math.round(f.temp);
+  if (code == null) return null;
+  if (code >= 95) return "storm";
+  if (rain >= 50 || (code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
+  if (temp >= 33) return "hot";
+  if (temp <= 12 || (code >= 71 && code <= 77) || code === 85 || code === 86) return "cold";
+  if (code === 45 || code === 48) return "fog";
+  if (code === 3 || (code === 2 && !day)) return "cloud";
+  if (code === 2) return "sun-cloud";
+  return day ? "sun" : "moon";
 }
 
 // The lowest and highest temperature and the top chance of rain, from the hour nearest the
