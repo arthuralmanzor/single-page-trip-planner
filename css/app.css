@@ -64,6 +64,8 @@ nav.tabs a{color:inherit;text-decoration:none;padding:10px 12px 12px;font-weight
 nav.tabs a[aria-current="page"]{opacity:1;border-bottom-color:var(--accent)}
 
 main{padding-block:20px 64px}
+/* Set while a swiped-to day slides in. */
+main.sliding{overflow-x:clip}
 section.view{display:flex;flex-direction:column;gap:18px}
 .lede{color:var(--muted);margin:0;max-width:62ch}
 .status{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:8px}
@@ -268,7 +270,7 @@ details.sim summary{cursor:pointer;color:var(--muted);font-weight:700;min-height
 .simrow select,.simrow input{width:100%;min-height:var(--tap);border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:8px 10px}
 /* Timeline: done, now, next */
 /* Clears the tab bar, which is all that's left at the top once the page has scrolled. */
-.tl li{scroll-margin-top:calc(env(safe-area-inset-top,0px) + 64px)}
+.tl li,#dayView .dayhead{scroll-margin-top:calc(env(safe-area-inset-top,0px) + 64px)}
 .tl .state{align-self:flex-start;font-family:var(--f-mono);font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:5px;background:var(--pend-bg);color:var(--pend-ink)}
 .tl .state:empty{display:none}
 .tl li.now .state{background:var(--accent);color:var(--accent-ink)}
