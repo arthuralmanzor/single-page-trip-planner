@@ -83,6 +83,11 @@ section.view{display:flex;flex-direction:column;gap:18px}
 .dayhead{display:flex;flex-direction:column;gap:6px}
 .dayhead .kicker{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
 .dayhead h2{font-size:1.7rem;font-weight:800}
+/* The button's height spills into the gaps, so the line under the day's title keeps its size. */
+.overview-fold{align-self:flex-start;display:flex;align-items:center;gap:8px;min-height:var(--tap);margin-block:calc((var(--tap) - 1lh) / -2);padding:0;border:0;background:none;color:var(--muted);font-size:.85rem;font-weight:700;cursor:pointer}
+.overview-fold::after{content:"";flex:none;width:7px;height:7px;border:solid currentColor;border-width:0 2px 2px 0;transform:translateY(2px) rotate(-135deg)}
+.overview-folded .overview-fold::after{transform:translateY(-2px) rotate(45deg)}
+.overview-folded .folds{display:none}
 
 /* Callouts */
 .callout{border-radius:var(--r);padding:12px 14px;display:flex;gap:10px;align-items:flex-start}

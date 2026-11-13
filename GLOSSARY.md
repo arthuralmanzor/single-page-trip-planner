@@ -29,6 +29,11 @@ The card at the top of the plan that shows where the family should be now and wh
 shows the current Stop in full, so whatever a Stop shows or does in the day's plan, it does there
 too.
 
+**Day overview**:
+The top of a Day's plan, before its Stops: its short plan, what to bring, its note and what's
+booked.
+_Avoid_: glance, top area, summary
+
 **Place**:
 Somewhere a Stop goes, with what to search for it in Google Maps.
 
