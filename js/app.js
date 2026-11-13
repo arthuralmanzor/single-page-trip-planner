@@ -175,7 +175,8 @@ function legHTML(l) {
 }
 const legsHTML = s => s.legs.length ? `<div class="legs">${s.legs.map(legHTML).join("")}</div>` : "";
 const etaHTML = s => s.arrives ? `<div class="eta"><span class="lbl">Leave</span><b>${esc(s.leaves || s.time)}</b><span class="ar" aria-hidden="true">→</span><span class="lbl">Arrive</span><b>${esc(s.arrives)}</b></div>` : "";
-function bannerHTML(b) { return b ? `<div class="callout ${b.type === "warn" ? "warn" : "tip"}">${b.label ? `<span class="ic">${esc(b.label)}</span>` : ""}<span>${esc(b.text)}</span></div>` : ""; }
+// A warn note stays when the day overview is folded.
+function bannerHTML(b) { return b ? `<div class="callout ${b.type === "warn" ? "warn" : "tip folds"}">${b.label ? `<span class="ic">${esc(b.label)}</span>` : ""}<span>${esc(b.text)}</span></div>` : ""; }
 function placeHTML(p) {
   const mapLink = `<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=${encodeURIComponent(p.search)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.750 7-13a7 7 0 0 0-7-7zm0 9.500a2.500 2.500 0 1 1 0-5 2.500 2.500 0 0 1 0 5z"/></svg><span>${esc(p.label)}</span></a>`;
   if (!p.localAddress) return mapLink;
@@ -226,11 +227,11 @@ function glanceHTML(d) {
   const plan = d.stops.filter(s => s.summary).map(s => `<li><button type="button" class="g-item" data-goto="${esc(stopKey(d, s))}"><span class="mono">${esc(s.time)}</span><span>${esc(s.summary)}</span></button></li>`).join("");
   const bring = d.bring.length ? `<div class="g-col"><h3 class="g-h">Bring today</h3><ul class="g-bring">${d.bring.map((b, i) => { const id = `${d.date}-${i}`; return `<li><label><input type="checkbox" data-bring="${esc(id)}" ${packed[id] ? "checked" : ""}><span>${esc(b)}</span></label></li>`; }).join("")}</ul><p class="g-every">${TRIP.everyDay ? `Every day: ${esc(TRIP.everyDay)}. ` : ""}Ticks stay on this phone.</p></div>` : "";
   if (!plan && !bring) return "";
-  return `<section class="glance" aria-label="Day ${d.n} at a glance">${plan ? `<div class="g-col"><h3 class="g-h">Today's plan</h3><ol class="g-list">${plan}</ol></div>` : ""}${bring}</section>`;
+  return `<section class="glance folds" aria-label="Day ${d.n} at a glance">${plan ? `<div class="g-col"><h3 class="g-h">Today's plan</h3><ol class="g-list">${plan}</ol></div>` : ""}${bring}</section>`;
 }
 function dayBookingsHTML(d) {
   const list = BOOKINGS.filter(b => b.date === d.date);
-  return list.length ? `<div class="daybk"><span class="lbl">Booked</span>${list.map(b => `<a href="#bookings" class="bkchip"><span class="mono">${esc(b.code)}</span> ${esc(b.title)}${b.time ? ` · ${esc(b.time)}` : ""}</a>`).join("")}</div>` : "";
+  return list.length ? `<div class="daybk folds"><span class="lbl">Booked</span>${list.map(b => `<a href="#bookings" class="bkchip"><span class="mono">${esc(b.code)}</span> ${esc(b.title)}${b.time ? ` · ${esc(b.time)}` : ""}</a>`).join("")}</div>` : "";
 }
 function renderDay() {
   readNews();
@@ -239,18 +240,31 @@ function renderDay() {
   const notes = store.get("trip-notes") || {};
   const timed = d.stops.filter(s => s.at != null).map(s => s.at);
   const dayForecastEl = timed.length ? `<p class="day-forecast" data-first-stop-at="${Math.min(...timed)}" data-last-stop-at="${Math.max(...timed)}" hidden></p>` : "";
+  const glance = glanceHTML(d), note = bannerHTML(d.banner), booked = dayBookingsHTML(d);
+  const foldable = !!(glance || booked || (note && d.banner.type !== "warn"));
   $("#dayView").innerHTML = `
-   <div class="dayhead"><span class="kicker">${esc(d.name)} · ${esc(d.dow)}, ${esc(fmtMonthDay(noon(d.date)))}</span><h2>${esc(d.title)}</h2>${dayForecastEl}</div>
-   ${glanceHTML(d)}
-   ${bannerHTML(d.banner)}
-   ${dayBookingsHTML(d)}
-   <p class="codehint">Each stop has a code like <span class="mono">D${d.n}-03</span>. Tap it to copy the stop, then paste it when you ask Gemini for a change.</p>
+   <div class="dayhead"><span class="kicker">${esc(d.name)} · ${esc(d.dow)}, ${esc(fmtMonthDay(noon(d.date)))}</span><h2>${esc(d.title)}</h2>${dayForecastEl}${foldable ? '<button type="button" class="overview-fold" id="overviewFold"></button>' : ""}</div>
+   ${glance}
+   ${note}
+   ${booked}
+   <p class="codehint folds">Each stop has a code like <span class="mono">D${d.n}-03</span>. Tap it to copy the stop, then paste it when you ask Gemini for a change.</p>
    ${d.stops.length ? timelineHTML(d) : `<div class="empty">No stops on this day yet.</div>`}
    <div class="card"><h3>My notes for ${esc(d.name)}</h3>
      <label for="dayNote" class="saved" style="min-height:0">Saved on this phone only.</label>
      <textarea id="dayNote" data-note="${esc(d.date)}" placeholder="e.g. Meet at Exit J2">${esc(notes[d.date] || "")}</textarea>
    </div>`;
-  applyMarks(); applyWeather(); renderChanged();
+  foldOverview(); applyMarks(); applyWeather(); renderChanged();
+}
+/* One fold of the day overview covers every day, and stays through reloads and a different Sheet.
+   A day with nothing to fold has no button, and shows its stop-code line. */
+const OVERVIEW_FOLDED = "trip-overview-folded";
+let overviewFolded = store.get(OVERVIEW_FOLDED) === true;
+function foldOverview() {
+  const btn = $("#overviewFold"), folded = overviewFolded && !!btn;
+  $("#dayView").classList.toggle("overview-folded", folded);
+  if (!btn) return;
+  btn.textContent = folded ? "Show the day overview" : "Hide the day overview";
+  btn.setAttribute("aria-expanded", String(!folded));
 }
 function applyMarks(st = tripState()) {
   document.querySelectorAll("#dayView .g-item[data-goto]").forEach(g => {
@@ -381,6 +395,9 @@ $("#dayView").addEventListener("input", e => {
 $("#dayView").addEventListener("click", e => {
   const copy = e.target.closest("[data-stop-line]");
   if (copy) { copyStop(copy.dataset.stopLine); return; }
+  if (e.target.closest("#overviewFold")) {
+    overviewFolded = !overviewFolded; store.set(OVERVIEW_FOLDED, overviewFolded); foldOverview(); return;
+  }
   const stop = e.target.closest("li[data-k]");
   if (stop && stop.querySelector(".fold") && e.target.closest(".fold, .time")) {
     const k = stop.dataset.k;
