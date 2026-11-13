@@ -90,8 +90,16 @@ function readTrip(text) {
     travelers: kv["Travelers"] || "",
     hotel: kv["Hotel"] || "",
     everyDay: kv["Every day"] || "",
+    weatherAt: kv["Weather at"] || "",
     sheets,
   };
+}
+
+// "22.30, 114.17": a latitude and a longitude.
+function readPoint(text) {
+  const m = /^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/.exec(text);
+  if (!m || Math.abs(+m[1]) > 90 || Math.abs(+m[2]) > 180) return null;
+  return { lat: +m[1], lon: +m[2] };
 }
 
 function readStop(r, day, tz, seen, booked) {
@@ -196,6 +204,10 @@ export function readPlan(tabs) {
     trip.timeZone = "UTC";
   }
   const tz = trip.timeZone;
+  const point = trip.weatherAt && readPoint(trip.weatherAt);
+  if (trip.weatherAt && !point)
+    problems.push({ where: "Trip", text: `The Weather at value "${trip.weatherAt}" isn't a map point like 22.30, 114.17.` });
+  trip.weatherAt = point || null;
   const bookings = readBookings(tabs.Bookings);
   const booked = new Set(bookings.map(b => b.code));
   const dayTable = table(tabs.Days);

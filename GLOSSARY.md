@@ -57,6 +57,18 @@ A link to this page that opens the Plan on another phone with nothing to paste. 
 can read the Plan, the same as with the Plan Sheet's own link.
 _Avoid_: invite, share code
 
+## Weather
+
+**Forecast**:
+The temperature and chance of rain expected at a Stop's time, at one point that stands for the
+whole trip. Not part of the Plan.
+_Avoid_: weather report, conditions
+
+**Warning**:
+A rainstorm or typhoon warning signal the Hong Kong Observatory has in force now. One can change a
+Day's plan within the hour.
+_Avoid_: signal (here that means the phone's reception), alert
+
 ## Reference
 
 **Checklist**:
