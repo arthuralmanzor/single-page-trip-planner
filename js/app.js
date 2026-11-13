@@ -3,6 +3,7 @@ import { tripClock, stopKey } from "./clock.js";
 import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs, familyLink, sheetFromFamilyLink } from "./sheets.js";
+import { swipedDay } from "./swipe.js";
 import { refreshForecasts, forecastForPoint, forecastAt, forecastText, dayForecast, dayForecastText, forecastIcon, asOf, WARNINGS_URL, readWarnings, hasWarnings, warningsAt } from "./weather.js";
 
 /* ---------- Helpers ---------- */
@@ -14,7 +15,10 @@ const store = {
   drop(k) { try { localStorage.removeItem(k); } catch (e) {} },
 };
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600); }
-const smooth = () => matchMedia("(prefers-reduced-motion:reduce)").matches ? "auto" : "smooth";
+const reduceMotion = () => matchMedia("(prefers-reduced-motion:reduce)").matches;
+const smooth = () => reduceMotion() ? "auto" : "smooth";
+// The tab bar stays at the top of the screen, so what's under it isn't on screen.
+const underTabbar = () => { const bar = $("#tabbar"); return Math.ceil(parseFloat(getComputedStyle(bar).top) + bar.offsetHeight); };
 
 /* ---------- The loaded trip ---------- */
 let TZ = "UTC", TRIP = null, DAYS = [], BOOKINGS = [], PROBLEMS = [];
@@ -65,8 +69,7 @@ const timers = new WeakMap();
 let watcher = null;
 function watchSeen() {
   if (watcher) watcher.disconnect();
-  // The tab bar stays at the top of the screen, so a mark under it isn't on screen.
-  const bar = $("#tabbar"), top = Math.ceil(parseFloat(getComputedStyle(bar).top) + bar.offsetHeight);
+  const top = underTabbar();
   watcher = new IntersectionObserver(entries => entries.forEach(({ target: el, intersectionRatio }) => {
     clearTimeout(timers.get(el));
     if (intersectionRatio > 0.99) timers.set(el, setTimeout(() => { if (el.isConnected && !document.hidden) see(el); }, 2000));
@@ -376,7 +379,9 @@ $("#simGo").addEventListener("click", () => {
   else scrollTo({ top: 0, behavior: smooth() });
 });
 
-$("#dayStrip").addEventListener("click", e => { const b = e.target.closest("[data-day]"); if (!b) return; selDay = b.dataset.day; autoDay = false; store.set("trip-day", selDay); renderStrip(); renderDay(); });
+// A day opened by hand stays open as the clock moves on.
+function openDay(id) { selDay = id; autoDay = false; store.set("trip-day", selDay); renderStrip(); renderDay(); }
+$("#dayStrip").addEventListener("click", e => { const b = e.target.closest("[data-day]"); if (b) openDay(b.dataset.day); });
 $("#nowCard").addEventListener("click", e => {
   const copy = e.target.closest("[data-stop-line]");
   if (copy) copyStop(copy.dataset.stopLine);
@@ -408,6 +413,35 @@ $("#dayView").addEventListener("click", e => {
   const li = [...document.querySelectorAll("#dayView li[data-k]")].find(x => x.dataset.k === g.dataset.goto);
   if (li) { li.scrollIntoView({ behavior: smooth(), block: "start" }); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1600); }
 });
+
+/* ---------- Swipe the day's plan to the next or previous day ---------- */
+// A drag in the notes box moves through its text, and on a zoomed-in page a sideways drag pans it.
+let swipeFrom = null;
+$("#dayView").addEventListener("touchstart", e => {
+  const t = e.touches[0], zoomed = window.visualViewport && visualViewport.scale > 1.01;
+  swipeFrom = e.touches.length === 1 && !zoomed && !e.target.closest("textarea") ? { x: t.clientX, y: t.clientY } : null;
+}, { passive: true });
+$("#dayView").addEventListener("touchcancel", () => { swipeFrom = null; });
+$("#dayView").addEventListener("touchend", e => {
+  const from = swipeFrom; swipeFrom = null;
+  if (!from || e.touches.length) return;
+  const t = e.changedTouches[0], day = swipedDay(DAYS, selDay, from, { x: t.clientX, y: t.clientY }, innerWidth);
+  if (!day) return;
+  const later = DAYS.indexOf(day) > DAYS.findIndex(d => d.id === selDay);
+  openDay(day.id);
+  const head = $("#dayView .dayhead");
+  if (head.getBoundingClientRect().top < underTabbar()) head.scrollIntoView({ block: "start" });
+  if (!reduceMotion()) slideIn(later ? 1 : -1);
+});
+// A later day comes in from the right, and an earlier one from the left. Until it's in place, the
+// page cuts it off at the screen's edge rather than scrolling sideways.
+function slideIn(side) {
+  const view = $("#dayView"), page = $("main");
+  view.getAnimations().forEach(a => a.cancel());
+  page.classList.add("sliding");
+  view.animate([{ transform: `translateX(${side * 35}%)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 260, easing: "cubic-bezier(.2,.7,.3,1)" })
+    .finished.catch(() => {}).then(() => { if (!view.getAnimations().length) page.classList.remove("sliding"); });
+}
 
 /* ---------- Copy a stop to paste into a chat ---------- */
 async function copyStop(line) {
