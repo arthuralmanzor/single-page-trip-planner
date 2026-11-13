@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The offline copy's test compares the branch with main, so it needs main's history.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
