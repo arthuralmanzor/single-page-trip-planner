@@ -3,8 +3,8 @@
 // Bump SHELL whenever a file in FILES changes. A changed sw.js makes the phone fetch all of FILES
 // again at once. Otherwise each file updates on its own, and a weak signal can leave old and new
 // files mixed.
-const SHELL = "shell-v12";
-const FILES = ["./", "index.html", "css/app.css", "js/app.js", "js/plan.js", "js/clock.js", "js/changes.js", "js/reference.js", "js/csv.js", "js/sheets.js", "icon.svg", "manifest.webmanifest"];
+const SHELL = "shell-v13";
+const FILES = ["./", "index.html", "css/app.css", "js/app.js", "js/plan.js", "js/clock.js", "js/changes.js", "js/reference.js", "js/csv.js", "js/sheets.js", "js/weather.js", "icon.svg", "manifest.webmanifest"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

@@ -3,6 +3,7 @@ import { tripClock, stopKey } from "./clock.js";
 import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs, familyLink, sheetFromFamilyLink } from "./sheets.js";
+import { forecastUrl, forecastDue, readForecast, forecastAt, forecastText, dayForecast, dayForecastText, forecastIcon, asOf, WARNINGS_URL, readWarnings, hasWarnings, warningsAt } from "./weather.js";
 
 /* ---------- Helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -93,6 +94,77 @@ const tripState = (ms = nowMs()) => CLOCK.at(ms);
 function fresh(st) { return localDate(st.cur.t) === localDate(st.ms); }
 function focusDay(st) { return (!fresh(st) && st.next) ? st.next.d : st.cur.d; }
 
+/* ---------- Weather: the Forecast at each stop's time, and the Warnings in force ---------- */
+const WEATHER = "trip-weather", WARNINGS = "trip-warnings";
+let FORECAST = store.get(WEATHER), IN_FORCE = store.get(WARNINGS);
+// A feed that never answers would hold the next check up, so each fetch gives up after 15 seconds.
+async function getJSON(url) {
+  const stop = new AbortController(), t = setTimeout(() => stop.abort(), 15000);
+  try {
+    const res = await fetch(url, { signal: stop.signal });
+    if (!res.ok) throw new Error(`${res.status}`);
+    return await res.json();
+  } finally { clearTimeout(t); }
+}
+let weatherBusy = false;
+async function loadWeather() {
+  if (weatherBusy || !TRIP) return;
+  weatherBusy = true;
+  try {
+    const point = TRIP.weatherAt;
+    if (!point) { FORECAST = null; store.drop(WEATHER); }
+    else if (forecastDue(FORECAST, point, Date.now())) {
+      try {
+        const fc = readForecast(await getJSON(forecastUrl(point)), point, Date.now());
+        if (fc) { FORECAST = fc; store.set(WEATHER, fc); }
+      } catch (e) {}
+    }
+    if (!hasWarnings(TRIP)) { IN_FORCE = null; store.drop(WARNINGS); }
+    else {
+      try { IN_FORCE = readWarnings(await getJSON(WARNINGS_URL), Date.now()); store.set(WARNINGS, IN_FORCE); } catch (e) {}
+    }
+  } finally { weatherBusy = false; }
+  applyWeather(); renderNow();
+}
+// Drawn on a 24 by 24 grid in the line style of the page's other icons. A part with the "back"
+// class is filled with what's behind the icon, so the cloud covers the sun.
+const ICONS = {
+  sun: ["Sunny", '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>'],
+  moon: ["Clear night", '<path d="M9.5 4.5A8 8 0 1 0 19.5 14.5A8 8 0 0 1 9.5 4.5z"/>'],
+  "sun-cloud": ["Partly cloudy", '<circle cx="8.5" cy="8.5" r="3"/><path d="M8.5 2.5v1.3M2.5 8.5h1.3M4.3 4.3l.9.9M12.7 4.3l-.9.9M4.3 12.7l.9-.9"/><path class="back" d="M10 20.5a3.7 3.7 0 0 1-.3-7.19A4.8 4.8 0 0 1 18.6 12.4 4.1 4.1 0 0 1 18 20.5z"/>'],
+  cloud: ["Cloudy", '<path d="M7 19a4.5 4.5 0 0 1-.4-8.98A6 6 0 0 1 18 9.6 4.8 4.8 0 0 1 17 19z"/>'],
+  fog: ["Fog", '<path d="M4 8h16M2.5 12h19M4 16h16M7 20h10"/>'],
+  rain: ["Rain", '<path d="M7 15a4 4 0 0 1-.4-7.98A5.5 5.5 0 0 1 17.2 6.2 4.5 4.5 0 0 1 16.8 15z"/><path d="M8.5 18l-1 2.5M12.5 18l-1 2.5M16.5 18l-1 2.5"/>'],
+  storm: ["Thunderstorm", '<path d="M7 15a4 4 0 0 1-.4-7.98A5.5 5.5 0 0 1 17.2 6.2 4.5 4.5 0 0 1 16.8 15z"/><path d="M13 16.5l-2.5 3.5h3l-2.5 3.5"/>'],
+  hot: ["Very hot", '<path d="M9 14.2V5a2.5 2.5 0 0 1 5 0v9.2a4 4 0 1 1-5 0z"/><path d="M11.5 16.5V7M17.5 5.5l2-1.5M18 9.5h2.5M17.5 13.5l2 1.5"/>'],
+  cold: ["Cold", '<path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5M9.5 4.5l2.5 2 2.5-2M9.5 19.5l2.5-2 2.5 2"/>'],
+};
+const iconHTML = f => {
+  const icon = ICONS[forecastIcon(f)];
+  return icon ? `<svg viewBox="0 0 24 24" aria-hidden="true">${icon[1]}</svg><span class="sr">${icon[0]}. </span>` : "";
+};
+const forecastFor = ms => forecastAt(FORECAST, ms, Date.now());
+// The now card has no time column, so its icon goes in front of the numbers.
+const forecastHTML = ms => { const f = forecastFor(ms); return f ? `<span class="forecast">${iconHTML(f)}${esc(forecastText(f))}</span>` : ""; };
+/* Fills in the day's weather without drawing the day again, so a note being typed keeps its
+   keyboard. The stop the family is at shows the weather now, as the now card does. */
+function applyWeather(st = tripState()) {
+  document.querySelectorAll("#dayView li[data-stop-at]").forEach(li => {
+    const f = forecastFor(li.classList.contains("now") ? st.ms : +li.dataset.stopAt);
+    const line = li.querySelector(".forecast"), icon = li.querySelector(".weather-icon");
+    line.textContent = f ? forecastText(f) : ""; line.hidden = !f;
+    icon.innerHTML = f ? iconHTML(f) : ""; icon.hidden = !icon.innerHTML;
+  });
+  const now = Date.now(), day = $("#dayView .day-forecast");
+  if (day) {
+    const f = dayForecast(FORECAST, +day.dataset.firstStopAt, +day.dataset.lastStopAt, now), old = asOf(FORECAST, now);
+    day.textContent = f ? dayForecastText(f) + (old ? ` · as of ${savedWhen(old)}` : "") : ""; day.hidden = !f;
+  }
+  const list = warningsAt(IN_FORCE, now), box = $("#warnings");
+  box.hidden = !list.length;
+  if (list.length) box.innerHTML = `<span class="ic">WARNING</span><span><b>${esc(list.join(" · "))}</b>In force as of ${esc(savedWhen(IN_FORCE.fetchedAt))}.</span>`;
+}
+
 /* ---------- Directions ---------- */
 function chipHTML(p) {
   if (/^Platform\b/i.test(p)) return `<span class="chip plat">${esc(p)}</span>`;
@@ -146,9 +218,9 @@ const COPY_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4a
 const copyHTML = (d, s) => `<button type="button" class="copy" data-stop-line="${esc(stopLine(d, s))}">${s.code ? `<span class="sr">Copy </span>${esc(s.code)}` : "Copy"}${COPY_ICON}</button>`;
 const markHTML = k => NEWS.marks[k] ? `<span class="chg ${NEWS.marks[k]}" data-changed="${esc(k)}">${NEWS.marks[k] === "new" ? "New" : "Updated"}</span>` : "";
 function timelineHTML(d) {
-  return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}">
-      <span class="time">${esc(s.time)}<span class="code">${esc(s.code)}</span>${copyHTML(d, s)}</span><span class="rail"><span class="node"></span></span>
-      <div class="body"><span class="state" aria-live="polite"></span>${markHTML(stopKey(d, s))}${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>
+  return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}"${s.at != null ? ` data-stop-at="${s.at}"` : ""}>
+      <span class="time">${esc(s.time)}${s.at != null ? '<span class="weather-icon" hidden></span>' : ""}<span class="code">${esc(s.code)}</span>${copyHTML(d, s)}</span><span class="rail"><span class="node"></span></span>
+      <div class="body"><span class="state" aria-live="polite"></span>${markHTML(stopKey(d, s))}${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>${s.at != null ? '<span class="forecast" hidden></span>' : ""}
         ${s.problems.map(p => `<div class="badnote">Fix in the Sheet: ${esc(p)}</div>`).join("")}
         ${stopHTML(s)}
       </div></li>`).join("")}</ol>`;
@@ -169,8 +241,10 @@ function renderDay() {
   const d = dayById(selDay);
   if (!d) { $("#dayView").innerHTML = `<div class="empty">The Sheet has no days yet.</div>`; return; }
   const notes = store.get("trip-notes") || {};
+  const timed = d.stops.filter(s => s.at != null).map(s => s.at);
+  const dayForecastEl = timed.length ? `<p class="day-forecast" data-first-stop-at="${Math.min(...timed)}" data-last-stop-at="${Math.max(...timed)}" hidden></p>` : "";
   $("#dayView").innerHTML = `
-   <div class="dayhead"><span class="kicker">${esc(d.name)} · ${esc(d.dow)}, ${esc(fmtMonthDay(noon(d.date)))}</span><h2>${esc(d.title)}</h2></div>
+   <div class="dayhead"><span class="kicker">${esc(d.name)} · ${esc(d.dow)}, ${esc(fmtMonthDay(noon(d.date)))}</span><h2>${esc(d.title)}</h2>${dayForecastEl}</div>
    ${glanceHTML(d)}
    ${bannerHTML(d.banner)}
    ${dayBookingsHTML(d)}
@@ -180,7 +254,7 @@ function renderDay() {
      <label for="dayNote" class="saved" style="min-height:0">Saved on this phone only.</label>
      <textarea id="dayNote" data-note="${esc(d.date)}" placeholder="e.g. Meet at Exit J2">${esc(notes[d.date] || "")}</textarea>
    </div>`;
-  applyMarks(); renderChanged();
+  applyMarks(); applyWeather(); renderChanged();
 }
 function applyMarks(st = tripState()) {
   document.querySelectorAll("#dayView .g-item[data-goto]").forEach(g => {
@@ -230,7 +304,7 @@ function renderNow(st = tripState()) {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip mode</span>${simTag}</div>
       <h3 class="now-title">${until(f.t - st.ms).replace(/^in /, "")} to go</h3>
       <p class="now-sub">From ${esc(fmtDate(f.t))}, this card shows where you should be, what's next and how to get there. Open the page on the day and it follows the plan by the clock.</p>
-      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span>${markHTML(stopKey(f.d, f.s))}<h4>${esc(f.s.title)}</h4></div>`;
+      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span>${markHTML(stopKey(f.d, f.s))}<h4>${esc(f.s.title)}</h4>${forecastHTML(f.t)}</div>`;
   } else if (st.phase === "after") {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip complete</span>${simTag}</div><h3 class="now-title">Welcome home</h3><p class="now-sub">The full plan stays here for the photos and the memories.</p>`;
   } else {
@@ -240,13 +314,13 @@ function renderNow(st = tripState()) {
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
     const stop = stopHTML(cur.s);
     box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span>${liveBtn}</div>
-      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3></div>
+      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3>${forecastHTML(ms)}</div>
       ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
       ${next && isFresh ? `<div class="now-bar" role="progressbar" aria-label="Time until the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}
       ${next ? `<div class="now-next">
         <span class="lbl">${next.s.kind === "travel" ? "Leave" : "Next"} ${sameDay ? "" : `${esc(fmtDow(next.t))} `}${fmtClock(next.t)} · ${until(next.t - ms)}</span>
-        ${markHTML(stopKey(next.d, next.s))}<h4>${esc(next.s.title)}</h4>
+        ${markHTML(stopKey(next.d, next.s))}<h4>${esc(next.s.title)}</h4>${forecastHTML(next.t)}
         ${legsHTML(next.s)}
         ${heads ? `<div class="heads"><span class="lbl">Heads-up</span><span>${esc(heads)}</span></div>` : ""}
       </div>` : `<p class="now-sub">That's the last stop of the trip.</p>`}
@@ -265,7 +339,7 @@ function tick() {
   if (!TRIP) return;
   const st = tripState();
   if (st.phase === "during" && autoDay && selDay !== focusDay(st).id) { selDay = focusDay(st).id; renderStrip(st); renderDay(); }
-  else { renderStrip(st); applyMarks(st); }
+  else { renderStrip(st); applyMarks(st); applyWeather(st); }
   renderNow(st);
 }
 
@@ -474,6 +548,7 @@ function renderAll() {
   if (!DAYS.some(d => d.id === selDay)) selDay = DAYS[0] ? DAYS[0].id : null;
   $("#v-setup").hidden = true;
   ["#tabbar", "#syncStatus", "#share", "#simBox", "#foot"].forEach(s => { $(s).hidden = false; });
+  $("#weatherCredit").hidden = !TRIP.weatherAt; $("#hkoCredit").hidden = !hasWarnings(TRIP);
   renderProblems(); renderSim(); renderStrip(st); renderDay(); renderNow(st);
   renderChecks(); renderPharmacy(); renderBookings(); renderInfo(); route();
 }
@@ -529,7 +604,7 @@ async function load(link, { first = false } = {}) {
         : `No connection. Showing the copy saved ${savedWhen(old.savedAt)}.`);
     }
     return false;
-  } finally { loading = false; $("#refresh").disabled = false; }
+  } finally { loading = false; $("#refresh").disabled = false; loadWeather(); }
 }
 
 async function openFromSetup(link) {
@@ -545,7 +620,7 @@ $("#setupForm").addEventListener("submit", e => {
 });
 $("#refresh").addEventListener("click", async () => { if (await load(store.get(LINK))) toast("Plan refreshed"); });
 // What came from the Sheet. The family's own ticks and notes stay.
-const dropSheet = () => [LINK, COPY, SEEN].forEach(k => store.drop(k));
+const dropSheet = () => [LINK, COPY, SEEN, WEATHER, WARNINGS].forEach(k => store.drop(k));
 $("#forget").addEventListener("click", () => {
   if (!confirm("Forget this Sheet on this phone? Your ticks and notes stay.")) return;
   dropSheet(); location.hash = ""; location.reload();

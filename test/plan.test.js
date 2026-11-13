@@ -186,6 +186,21 @@ test("a time zone the phone doesn't know is flagged and the plan still loads", (
   assert.match(none.problems[0].text, /time zone/i);
 });
 
+test("the Trip tab's Weather at row is the map point the forecast is for", () => {
+  const plan = readPlan({ ...day3(), Trip: TRIP + `\n"Weather at","22.30, 114.17"` });
+  assert.deepEqual(plan.trip.weatherAt, { lat: 22.3, lon: 114.17 });
+  assert.deepEqual(plan.problems, []);
+  assert.equal(readPlan(day3()).trip.weatherAt, null);
+});
+
+test("a Weather at value that isn't a map point is flagged, and no weather shows", () => {
+  for (const value of ["Hong Kong", "22.30", "122.30, 114.17", "22.30, 214.17"]) {
+    const plan = readPlan({ ...day3(), Trip: TRIP + `\n"Weather at","${value}"` });
+    assert.equal(plan.trip.weatherAt, null, value);
+    assert.deepEqual(plan.problems, [{ where: "Trip", text: `The Weather at value "${value}" isn't a map point like 22.30, 114.17.` }], value);
+  }
+});
+
 test("a stop that names a booking the Bookings tab doesn't have is flagged", () => {
   const BOOKINGS = `"Code","Date","Type","Title","Time","Details","Bring","Status","Tickets"\n"BK-05","2027-11-18","Tickets","Peak Tram","","","","",""`;
   const plan = readPlan({ ...day3(`"D3-07","16:45","key","Peak Tram up","","","","","","","","BK-05, BK-99","",""`), Bookings: BOOKINGS });

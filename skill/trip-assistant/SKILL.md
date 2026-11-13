@@ -131,6 +131,7 @@ The `Trip` keys:
 - `Name`, `Hotel`, and `Travelers` (a number)
 - `First day` and `Last day`, both like `2026-11-18`
 - `Time zone`, a name like `Asia/Hong_Kong`
+- `Weather at`, the map point of the trip's city, like `22.30, 114.17`. Set it once.
 - `Every day`, what to carry daily
 - The links to the other Sheets: `Changes sheet`, `Checklists sheet`, `Pharmacy and info sheet`,
   `Private sheet`
