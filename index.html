@@ -18,12 +18,15 @@
 </head>
 <body>
 <header class="ticket">
+  <div class="wrap trow">
+    <div class="route"><span id="tripName">Trip planner</span><small id="tripSub"></small></div>
+    <button type="button" class="countdown" id="countdown" disabled hidden></button>
+  </div>
+</header>
+<div class="tabbar" id="tabbar" hidden>
   <div class="wrap">
-    <div class="trow">
-      <div class="route"><span id="tripName">Trip planner</span><small id="tripSub"></small></div>
-      <button type="button" class="countdown" id="countdown" disabled hidden></button>
-    </div>
-    <nav class="tabs" aria-label="Sections" id="tabs" hidden>
+    <span class="tabbar-name" id="tabbarName" aria-hidden="true"></span>
+    <nav class="tabs" aria-label="Sections">
       <a href="#itinerary" data-view="itinerary">Itinerary</a>
       <a href="#checklists" data-view="checklists" hidden>Checklists</a>
       <a href="#pharmacy" data-view="pharmacy" hidden>Pharmacy</a>
@@ -31,7 +34,7 @@
       <a href="#info" data-view="info" hidden>Info &amp; food</a>
     </nav>
   </div>
-</header>
+</div>
 
 <main class="wrap">
   <!-- SETUP: shown until this phone has a Plan Sheet link -->

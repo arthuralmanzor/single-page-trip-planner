@@ -1,5 +1,5 @@
 
-/* Layout: a pocket trip binder. Sticky ticket header, day strip, timeline with real MTR line-colour route chips. Phone first. */
+/* Layout: a pocket trip binder. Header with a sticky tab bar, day strip, timeline with real MTR line-colour route chips. Phone first. */
 :root{
   --bg:#f3f5f4; --surface:#ffffff; --sunk:#e8edeb; --line:#d5dddb;
   --ink:#16222a; --muted:#56656b; --accent:#0d6b5e; --accent-ink:#ffffff; --accent-soft:#d9eee9;
@@ -41,9 +41,16 @@ button,select,textarea,input{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 
-/* Ticket header */
-header.ticket{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--ink);color:var(--bg)}
-.ticket .wrap{padding-block:12px 0;display:flex;flex-direction:column;gap:10px}
+/* The header scrolls away and only the tab bar sticks, so the page never changes size and nothing
+   under it moves. Once stuck, the bar shows the trip name in the room the tabs leave. */
+header.ticket,.tabbar{background:var(--ink);color:var(--bg)}
+header.ticket{padding-top:env(safe-area-inset-top,0px)}
+.ticket .trow{padding-block:12px 10px}
+.tabbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9}
+.tabbar .wrap{display:flex;align-items:center}
+.tabbar-name{flex:0 1 auto;min-width:0;max-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;opacity:0;font-family:var(--f-display);font-weight:800;font-size:1.1rem;transition:max-width .2s,opacity .2s}
+.tabbar.stuck .tabbar-name{max-width:100%;opacity:1}
+.tabbar.stuck nav.tabs{max-width:60%}
 .trow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .route{display:flex;align-items:baseline;gap:10px;font-family:var(--f-display);font-weight:800;font-size:1.5rem;letter-spacing:.01em}
 .route small{font-family:var(--f-mono);font-weight:500;font-size:.75rem;opacity:.7;letter-spacing:.08em;text-transform:uppercase}
@@ -51,7 +58,7 @@ header.ticket{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;backgro
 .countdown{font-family:var(--f-mono);font-size:.8rem;line-height:1.25rem;background:color-mix(in srgb,var(--bg) 14%,transparent);color:inherit;border:0;padding:12px 14px;border-radius:999px;white-space:nowrap;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;cursor:pointer;min-width:0}
 .countdown:disabled{cursor:default;opacity:1}
 .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:1px}
-nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs{display:flex;gap:2px;flex:0 1 auto;min-width:0;max-width:100%;transition:max-width .2s;overflow-x:auto;scrollbar-width:none}
 nav.tabs::-webkit-scrollbar{display:none}
 nav.tabs a{color:inherit;text-decoration:none;padding:10px 12px 12px;font-weight:700;font-size:.95rem;opacity:.65;border-bottom:3px solid transparent;white-space:nowrap}
 nav.tabs a[aria-current="page"]{opacity:1;border-bottom-color:var(--accent)}
@@ -245,7 +252,8 @@ details.sim summary{cursor:pointer;color:var(--muted);font-weight:700;min-height
 .simrow label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:700;flex:1 1 130px;min-width:0}
 .simrow select,.simrow input{width:100%;min-height:var(--tap);border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:8px 10px}
 /* Timeline: done, now, next */
-.tl li{scroll-margin-top:180px}
+/* Clears the tab bar, which is all that's left at the top once the page has scrolled. */
+.tl li{scroll-margin-top:calc(env(safe-area-inset-top,0px) + 64px)}
 .tl .state{align-self:flex-start;font-family:var(--f-mono);font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:5px;background:var(--pend-bg);color:var(--pend-ink)}
 .tl .state:empty{display:none}
 .tl li.now .state{background:var(--accent);color:var(--accent-ink)}

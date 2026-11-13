@@ -64,8 +64,8 @@ const timers = new WeakMap();
 let watcher = null;
 function watchSeen() {
   if (watcher) watcher.disconnect();
-  // The sticky header covers the top of the screen, so a mark under it isn't on screen.
-  const top = Math.ceil($("header.ticket").getBoundingClientRect().bottom);
+  // The tab bar stays at the top of the screen, so a mark under it isn't on screen.
+  const bar = $("#tabbar"), top = Math.ceil(parseFloat(getComputedStyle(bar).top) + bar.offsetHeight);
   watcher = new IntersectionObserver(entries => entries.forEach(({ target: el, intersectionRatio }) => {
     clearTimeout(timers.get(el));
     if (intersectionRatio > 0.99) timers.set(el, setTimeout(() => { if (el.isConnected && !document.hidden) see(el); }, 2000));
@@ -435,6 +435,28 @@ window.addEventListener("hashchange", () => {
   route(); window.scrollTo({ top: 0 });
 });
 
+/* The tab bar sticks below the phone's status bar, so it's stuck once the header has scrolled
+   under the status bar. The status bar's height changes when the phone turns. */
+const tabbar = $("#tabbar"), tabs = $("#tabbar nav");
+let stuckWatch = null, statusBar = null;
+function watchStuck() {
+  const top = parseFloat(getComputedStyle(tabbar).top);
+  if (top === statusBar) return;
+  statusBar = top;
+  if (stuckWatch) stuckWatch.disconnect();
+  stuckWatch = new IntersectionObserver(([e]) => tabbar.classList.toggle("stuck", !e.isIntersecting), { rootMargin: `-${top}px 0px 0px 0px` });
+  stuckWatch.observe($("header.ticket"));
+}
+watchStuck();
+addEventListener("resize", watchStuck);
+// The name takes room from the tabs, so the open tab is scrolled back into view.
+new ResizeObserver(() => {
+  const a = tabs.querySelector("[aria-current]"); if (!a) return;
+  const n = tabs.getBoundingClientRect(), r = a.getBoundingClientRect();
+  if (r.right > n.right) tabs.scrollLeft += r.right - n.right;
+  else if (r.left < n.left) tabs.scrollLeft -= n.left - r.left;
+}).observe(tabs);
+
 function renderProblems() {
   const box = $("#problems");
   box.hidden = !PROBLEMS.length;
@@ -442,7 +464,7 @@ function renderProblems() {
 }
 function renderAll() {
   document.title = TRIP.name;
-  $("#tripName").textContent = TRIP.name;
+  $("#tripName").textContent = $("#tabbarName").textContent = TRIP.name;
   const first = DAYS[0], last = DAYS[DAYS.length - 1];
   const dates = first ? (first === last ? fmtMonthDay(noon(first.date)) : `${fmtMonthDay(noon(first.date))} – ${fmtMonthDay(noon(last.date))}`) : "";
   $("#tripSub").textContent = [dates, TRIP.travelers ? `${TRIP.travelers} travelers` : ""].filter(Boolean).join(" · ");
@@ -451,7 +473,7 @@ function renderAll() {
   if (st.phase === "during" && autoDay) selDay = focusDay(st).id;
   if (!DAYS.some(d => d.id === selDay)) selDay = DAYS[0] ? DAYS[0].id : null;
   $("#v-setup").hidden = true;
-  ["#tabs", "#syncStatus", "#share", "#simBox", "#foot"].forEach(s => { $(s).hidden = false; });
+  ["#tabbar", "#syncStatus", "#share", "#simBox", "#foot"].forEach(s => { $(s).hidden = false; });
   renderProblems(); renderSim(); renderStrip(st); renderDay(); renderNow(st);
   renderChecks(); renderPharmacy(); renderBookings(); renderInfo(); route();
 }
