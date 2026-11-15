@@ -321,3 +321,17 @@ test("a stop missing its time, name or code copies what it has", () => {
     "D3-05, Day 3 at 15:00",
   ]);
 });
+
+// A travel day starts in one city and ends in another, so a stop can carry its own map point.
+test("a stop's Weather at is the map point its forecast is for, and the others use the day's", () => {
+  const head = HEAD + `,"Weather at"`;
+  const plan = readPlan({ Trip: TRIP + `\n"Weather at","35.68, 139.76"`, Days: DAYS, "Day 3": [head,
+    `"D3-01","9:00","travel","Fly out","","","","","","","","","","","35.55, 139.78"`,
+    `"D3-02","15:00","visit","Hotel","","","","","","","","","","",""`,
+    `"D3-03","18:00","food","Dinner","","","","","","","","","","","Kyoto"`].join("\n") });
+  const [fly, hotel, dinner] = plan.days[0].stops;
+  assert.deepEqual(fly.weatherAt, { lat: 35.55, lon: 139.78 });
+  assert.equal(hotel.weatherAt, plan.days[0].weatherAt);
+  assert.equal(dinner.weatherAt, plan.days[0].weatherAt);
+  assert.deepEqual(plan.problems, [{ where: "Day 3 · D3-03", text: `The Weather at value "Kyoto" isn't a map point like 22.30, 114.17.` }]);
+});

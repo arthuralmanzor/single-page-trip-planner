@@ -66,7 +66,7 @@ _Avoid_: invite, share code
 
 **Forecast**:
 The sky, temperature and chance of rain expected at a Stop's time, or across a Day's stops, at the
-Day's map point: its own, or else the trip's. Not part of the Plan.
+Stop's map point: its own, or else its Day's, or else the trip's. Not part of the Plan.
 _Avoid_: weather report, conditions
 
 **Warning**:

@@ -141,15 +141,16 @@ const iconHTML = f => {
   const icon = ICONS[forecastIcon(f)];
   return icon ? `<svg viewBox="0 0 24 24" aria-hidden="true">${icon[1]}</svg><span class="sr">${icon[0]}. </span>` : "";
 };
-const forecastForDay = d => forecastForPoint(FORECASTS, d && d.weatherAt);
+const forecastFor = x => forecastForPoint(FORECASTS, x && x.weatherAt);
 // The now card has no time column, so its icon goes in front of the numbers.
-const forecastHTML = (d, ms) => { const f = forecastAt(forecastForDay(d), ms, Date.now()); return f ? `<span class="forecast">${iconHTML(f)}${esc(forecastText(f))}</span>` : ""; };
+const forecastHTML = (s, ms) => { const f = forecastAt(forecastFor(s), ms, Date.now()); return f ? `<span class="forecast">${iconHTML(f)}${esc(forecastText(f))}</span>` : ""; };
 /* Fills in the day's weather without drawing the day again, so a note being typed keeps its
    keyboard. The stop the family is at shows the weather now, as the now card does. */
 function applyWeather(st = tripState()) {
-  const now = Date.now(), fc = forecastForDay(dayById(selDay));
+  const now = Date.now(), d = dayById(selDay), fc = forecastFor(d);
   document.querySelectorAll("#dayView li[data-stop-at]").forEach(li => {
-    const f = forecastAt(fc, li.classList.contains("now") ? st.ms : +li.dataset.stopAt, now);
+    const s = d.stops.find(x => stopKey(d, x) === li.dataset.k);
+    const f = forecastAt(forecastFor(s), li.classList.contains("now") ? st.ms : +li.dataset.stopAt, now);
     const line = li.querySelector(".forecast"), icon = li.querySelector(".weather-icon");
     line.textContent = f ? forecastText(f) : ""; line.hidden = !f;
     icon.innerHTML = f ? iconHTML(f) : ""; icon.hidden = !icon.innerHTML;
@@ -241,7 +242,8 @@ function renderDay() {
   const d = dayById(selDay);
   if (!d) { $("#dayView").innerHTML = `<div class="empty">The Sheet has no days yet.</div>`; return; }
   const notes = store.get("trip-notes") || {};
-  const timed = d.stops.filter(s => s.at != null).map(s => s.at);
+  // The day's range covers the stops at the day's own map point, not those in another city.
+  const timed = d.stops.filter(s => s.at != null && s.weatherAt === d.weatherAt).map(s => s.at);
   const dayForecastEl = timed.length ? `<p class="day-forecast" data-first-stop-at="${Math.min(...timed)}" data-last-stop-at="${Math.max(...timed)}" hidden></p>` : "";
   const glance = glanceHTML(d), note = bannerHTML(d.banner), booked = dayBookingsHTML(d);
   const foldable = !!(glance || booked || (note && d.banner.type !== "warn"));
@@ -317,7 +319,7 @@ function renderNow(st = tripState()) {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip mode</span>${simTag}</div>
       <h3 class="now-title">${until(f.t - st.ms).replace(/^in /, "")} to go</h3>
       <p class="now-sub">From ${esc(fmtDate(f.t))}, this card shows where you should be, what's next and how to get there. Open the page on the day and it follows the plan by the clock.</p>
-      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span>${markHTML(stopKey(f.d, f.s))}<h4>${esc(f.s.title)}</h4>${forecastHTML(f.d, f.t)}</div>`;
+      <div class="now-next"><span class="lbl">First up · ${esc(fmtDate(f.t))}, ${fmtClock(f.t)}</span>${markHTML(stopKey(f.d, f.s))}<h4>${esc(f.s.title)}</h4>${forecastHTML(f.s, f.t)}</div>`;
   } else if (st.phase === "after") {
     box.innerHTML = `<div class="now-head"><span class="kicker">Trip complete</span>${simTag}</div><h3 class="now-title">Welcome home</h3><p class="now-sub">The full plan stays here for the photos and the memories.</p>`;
   } else {
@@ -327,13 +329,13 @@ function renderNow(st = tripState()) {
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
     const stop = stopHTML(cur.s);
     box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span>${liveBtn}</div>
-      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3>${forecastHTML(cur.d, ms)}</div>
+      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3>${forecastHTML(cur.s, ms)}</div>
       ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
       ${next && isFresh ? `<div class="now-bar" role="progressbar" aria-label="Time until the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}
       ${next ? `<div class="now-next">
         <span class="lbl">${next.s.kind === "travel" ? "Leave" : "Next"} ${sameDay ? "" : `${esc(fmtDow(next.t))} `}${fmtClock(next.t)} · ${until(next.t - ms)}</span>
-        ${markHTML(stopKey(next.d, next.s))}<h4>${esc(next.s.title)}</h4>${forecastHTML(next.d, next.t)}
+        ${markHTML(stopKey(next.d, next.s))}<h4>${esc(next.s.title)}</h4>${forecastHTML(next.s, next.t)}
         ${legsHTML(next.s)}
         ${heads ? `<div class="heads"><span class="lbl">Heads-up</span><span>${esc(heads)}</span></div>` : ""}
       </div>` : `<p class="now-sub">That's the last stop of the trip.</p>`}
@@ -595,7 +597,7 @@ function renderAll() {
   if (!DAYS.some(d => d.id === selDay)) selDay = DAYS[0] ? DAYS[0].id : null;
   $("#v-setup").hidden = true;
   ["#tabbar", "#syncStatus", "#share", "#simBox", "#foot"].forEach(s => { $(s).hidden = false; });
-  $("#weatherCredit").hidden = !DAYS.some(d => d.weatherAt); $("#hkoCredit").hidden = !hasWarnings(TRIP, DAYS);
+  $("#weatherCredit").hidden = !DAYS.some(d => d.weatherAt || d.stops.some(s => s.weatherAt)); $("#hkoCredit").hidden = !hasWarnings(TRIP, DAYS);
   renderProblems(); renderSim(); renderStrip(st); renderDay(); renderNow(st);
   renderChecks(); renderPharmacy(); renderBookings(); renderInfo(); route();
 }

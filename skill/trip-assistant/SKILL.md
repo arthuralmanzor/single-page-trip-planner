@@ -112,6 +112,7 @@ Every cell is plain text.
 | Bookings | Booking codes this stop uses | `BK-05, BK-06` |
 | Summary | A few words if the stop belongs in the day's short plan, else empty | `Peak Tram up at sunset` |
 | Day start | `yes` on the stop where the day's outing begins | |
+| Weather at | The map point of the stop's city, only when it isn't the day's (a travel day's stops before or after the flight). Add the column if the tab lacks it. | `14.51, 121.02` |
 
 `key` marks a stop the day is built around. Any line name works in a route.
 
@@ -139,7 +140,7 @@ every cell is plain text.
 | Tab | Columns | Notes |
 | --- | --- | --- |
 | `Trip` | Key, Value | Change a value, never a key. Keys below. |
-| `Days` | Day, Date, Tag, Title, Note label, Note, Note type, Bring, Weather at | `Day` is the day tab's exact name (`Day 3`). `Date` is `2026-11-18`. `Tag` is one or two words. `Note type` is `tip` or `warn`. `Bring` is one item per line. `Weather at` is the map point of the city where the day ends, when that isn't the Trip's city: add the column if the tab lacks it. |
+| `Days` | Day, Date, Tag, Title, Note label, Note, Note type, Bring, Weather at | `Day` is the day tab's exact name (`Day 3`). `Date` is `2026-11-18`. `Tag` is one or two words. `Note type` is `tip` or `warn`. `Bring` is one item per line. `Weather at` is the map point of the city where most of the day is spent, when that isn't the Trip's city: add the column if the tab lacks it. Stops in another city get their own `Weather at` on the day tab. |
 | `Bookings` | Code, Date, Type, Title, Time, Details, Bring, Status, Tickets | `Code` is `BK-01` onward. `Tickets` is one per line: `Label | https://drive.google.com/...`. No booking numbers here. |
 | `Changes` | When, Stop, What changed, Old, New | Add rows at the bottom, one per cell changed. Never edit an old row. |
 | `Checklists` | Id, List, Item, Note, Done | `Id` is short and never reused. `List` is the list's title. `Done` is `yes` or empty. |

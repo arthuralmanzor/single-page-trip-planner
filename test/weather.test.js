@@ -65,6 +65,12 @@ test("each day's stops show the forecast at the day's point, fetched once for ea
   assert.equal(forecastForPoint(list, null), null);
 });
 
+test("a stop with its own point gets that point's forecast fetched too", async () => {
+  const { get, asked } = feed();
+  await refreshForecasts([], [{ weatherAt: TOKYO, stops: [{ weatherAt: KYOTO }, { weatherAt: TOKYO }] }], hk("09:00"), get);
+  assert.deepEqual(asked, [TOKYO, KYOTO]);
+});
+
 test("a point's forecast is fetched again only once it's an hour old", async () => {
   const days = [{ weatherAt: TOKYO }, { weatherAt: KYOTO }];
   const kyoto = await refreshForecasts([], [{ weatherAt: KYOTO }], hk("09:00"), feed().get);

@@ -20,12 +20,13 @@ const samePoint = (a, b) => a.lat === b.lat && a.lon === b.lon;
 // The forecast kept for a map point, or null.
 export const forecastForPoint = (forecasts, point) => (point && forecasts.find(fc => samePoint(fc.point, point))) || null;
 
-// The forecasts to keep: one for each point the days use, with `get` fetching the feed's answer.
+// The forecasts to keep: one for each point the days and their stops use, with `get` fetching the feed's answer.
 // The feed's forecast changes every few hours, so a point's is fetched again once it's an hour
 // old, and kept when that fails.
 export async function refreshForecasts(forecasts, days, now, get) {
   const points = [];
-  for (const d of days) if (d.weatherAt && !points.some(p => samePoint(p, d.weatherAt))) points.push(d.weatherAt);
+  const add = pt => { if (pt && !points.some(p => samePoint(p, pt))) points.push(pt); };
+  for (const d of days) { add(d.weatherAt); for (const s of d.stops || []) add(s.weatherAt); }
   const list = await Promise.all(points.map(async point => {
     const old = forecastForPoint(forecasts, point);
     if (old && now - old.fetchedAt < HOUR) return old;
