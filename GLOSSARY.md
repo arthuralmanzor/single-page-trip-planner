@@ -34,6 +34,10 @@ The top of a Day's plan, before its Stops: its short plan, what to bring, its no
 booked.
 _Avoid_: glance, top area, summary
 
+**Tracker**:
+A link that follows a Ride live, like a flight on Flightradar24. Optional.
+_Avoid_: flight status, live map
+
 **Place**:
 Somewhere a Stop goes, with what to search for it in Google Maps.
 

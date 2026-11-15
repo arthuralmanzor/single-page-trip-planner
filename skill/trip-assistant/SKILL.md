@@ -112,6 +112,7 @@ Every cell is plain text.
 | Bookings | Booking codes this stop uses | `BK-05, BK-06` |
 | Summary | A few words if the stop belongs in the day's short plan, else empty | `Peak Tram up at sunset` |
 | Day start | `yes` on the stop where the day's outing begins | |
+| Tracker | For a flight: `Label | link` to its live tracker. Use the flight's own Flightradar24 page for its date when you have it, else the flight number's page. Add the column if the tab lacks it. | `XX 123 | https://www.flightradar24.com/data/flights/xx123` |
 | Weather at | The map point of the stop's city, only when it isn't the day's (a travel day's stops before or after the flight). Add the column if the tab lacks it. | `14.51, 121.02` |
 
 `key` marks a stop the day is built around. Any line name works in a route.

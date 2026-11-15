@@ -335,3 +335,18 @@ test("a stop's Weather at is the map point its forecast is for, and the others u
   assert.equal(dinner.weatherAt, plan.days[0].weatherAt);
   assert.deepEqual(plan.problems, [{ where: "Day 3 · D3-03", text: `The Weather at value "Kyoto" isn't a map point like 22.30, 114.17.` }]);
 });
+
+test("a stop's Tracker is a live link with an optional label, and anything else is flagged", () => {
+  const head = HEAD + `,"Tracker"`;
+  const plan = readPlan({ Trip: TRIP, Days: DAYS, "Day 3": [head,
+    `"D3-01","9:00","travel","Fly out","","","","","","","","","","","XX 123 | https://www.flightradar24.com/data/flights/xx123"`,
+    `"D3-02","12:00","travel","Fly on","","","","","","","","","","","https://www.flightradar24.com/data/flights/xx456"`,
+    `"D3-03","15:00","visit","Hotel","","","","","","","","","","",""`,
+    `"D3-04","18:00","travel","Fly home","","","","","","","","","","","XX 789 | flightradar24.com/data/flights/xx789"`].join("\n") });
+  const [a, b, c, d] = plan.days[0].stops;
+  assert.deepEqual(a.tracker, { label: "XX 123", url: "https://www.flightradar24.com/data/flights/xx123" });
+  assert.deepEqual(b.tracker, { label: "", url: "https://www.flightradar24.com/data/flights/xx456" });
+  assert.equal(c.tracker, null);
+  assert.equal(d.tracker, null);
+  assert.deepEqual(plan.problems, [{ where: "Day 3 · D3-04", text: `The Tracker value "XX 789 | flightradar24.com/data/flights/xx789" isn't a link like XX 123 | https://www.flightradar24.com/data/flights/xx123.` }]);
+});

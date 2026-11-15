@@ -102,6 +102,14 @@ function readPoint(text) {
   return { lat: +m[1], lon: +m[2] };
 }
 
+// "XX 123 | https://...": a ride's live tracker, as a label and an https link. The label is optional.
+function readTracker(text) {
+  const cut = text.lastIndexOf("|");
+  const url = (cut < 0 ? text : text.slice(cut + 1)).trim();
+  if (!/^https:\/\/\S+$/.test(url)) return null;
+  return { label: cut < 0 ? "" : text.slice(0, cut).trim(), url };
+}
+
 function readStop(r, day, tz, seen, booked) {
   const problems = [];
   const code = r.Code;
@@ -126,6 +134,8 @@ function readStop(r, day, tz, seen, booked) {
   // A stop in another city, on a travel day, has its own map point. The rest use the day's.
   const ownPoint = r["Weather at"] ? readPoint(r["Weather at"]) : null;
   if (r["Weather at"] && !ownPoint) problems.push(`The Weather at value "${r["Weather at"]}" isn't a map point like 22.30, 114.17.`);
+  const tracker = r.Tracker ? readTracker(r.Tracker) : null;
+  if (r.Tracker && !tracker) problems.push(`The Tracker value "${r.Tracker}" isn't a link like XX 123 | https://www.flightradar24.com/data/flights/xx123.`);
   if (booked.size) for (const b of bookings) if (!booked.has(b)) problems.push(`The booking ${b} isn't in the Bookings tab.`);
   return {
     code,
@@ -145,6 +155,7 @@ function readStop(r, day, tz, seen, booked) {
     summary: r.Summary || "",
     dayStart: /^(yes|y|true|x)$/i.test(r["Day start"] || ""),
     weatherAt: ownPoint || day.weatherAt,
+    tracker,
     problems,
   };
 }

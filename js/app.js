@@ -196,9 +196,10 @@ function tixHTML(codes) {
   const list = ticketsFor(codes);
   return list.length ? `<div class="tixlinks">${list.map(t => `<a class="btn" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">Open ticket · ${esc(t.label)}</a>`).join("")}</div>` : "";
 }
+const trackerHTML = t => t ? `<div class="tixlinks"><a class="btn" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">Track live${t.label ? ` · ${esc(t.label)}` : ""}</a></div>` : "";
 // What a stop says under its name. The day's plan and the now card both show it.
 const stopHTML = s => [
-  etaHTML(s), legsHTML(s),
+  etaHTML(s), legsHTML(s), trackerHTML(s.tracker),
   s.details ? `<p>${esc(s.details)}</p>` : "",
   mapHTML(s.places),
   s.wait ? `<div class="wait"><span class="lbl">Expect</span><span>${esc(s.wait)}</span></div>` : "",
