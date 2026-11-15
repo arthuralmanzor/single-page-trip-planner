@@ -1,5 +1,5 @@
 import { readPlan, dayTabs, midday, stopLine } from "./plan.js";
-import { tripClock, stopKey } from "./clock.js";
+import { tripClock, stopKey, delayLine } from "./clock.js";
 import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs, familyLink, sheetFromFamilyLink } from "./sheets.js";
@@ -91,11 +91,57 @@ function dropSeen() {
 
 /* ---------- Trip clock: where you should be ---------- */
 let sim = null, autoDay = true;
-const nowMs = () => sim ?? Date.now();
-const tripState = (ms = nowMs()) => CLOCK.at(ms);
+// The moment the page shows: now, or the one being previewed.
+const clockMs = () => sim ?? Date.now();
+// Where the family is in the plan: that moment, less their Delay.
+const nowMs = () => clockMs() - behind();
+const tripState = () => CLOCK.at(nowMs());
 /* Overnight, the last stop is from yesterday: focus on the day ahead. */
 function fresh(st) { return localDate(st.cur.t) === localDate(st.ms); }
 function focusDay(st) { return (!fresh(st) && st.next) ? st.next.d : st.cur.d; }
+
+/* ---------- Delay: how far behind the plan the family is, or ahead of it ---------- */
+/* Set by tapping where the family is in today's plan, and kept until "Back on track" or the end of
+   that day. The stops keep their times. A preview has its own, which ends with the preview. */
+const DELAY = "trip-delay";
+let delay = store.get(DELAY), simDelay = null;
+function behind() {
+  const d = sim == null ? delay : simDelay;
+  return d && d.date === localDate(clockMs()) ? d.ms : 0;
+}
+function setDelay(ms) {
+  const d = ms ? { ms, date: localDate(clockMs()) } : null;
+  if (sim != null) { simDelay = d; return; }
+  delay = d;
+  if (d) store.set(DELAY, d); else store.drop(DELAY);
+}
+// Today's line beside the stops takes the tap, while the trip is on.
+function canPlace() {
+  const live = CLOCK.at(clockMs());
+  return live.phase === "during" && focusDay(live).id === selDay;
+}
+/* The tap's height in a stop's row is how far along it is to the next stop, the way applyMarks
+   draws the line: from the stop's dot, 6px down, to the foot of the row. A key press is the stop's
+   own time. The row stays where it was on screen as the stops above it fold or open. */
+function placeAt(li, y) {
+  const k = li.dataset.k, r = li.getBoundingClientRect();
+  const p = y == null ? 0 : Math.min(1, Math.max(0, (y - r.top - 6) / (r.height - 6)));
+  const ms = CLOCK.momentIn(k, p);
+  if (ms == null) return;
+  const off = clockMs() - ms;
+  setDelay(Math.abs(off) < 60e3 ? 0 : off);
+  tick();
+  const now = [...document.querySelectorAll("#dayView li[data-k]")].find(x => x.dataset.k === k);
+  if (now) scrollBy(0, now.getBoundingClientRect().top - r.top);
+}
+function renderDelay(st) {
+  if (!behind() && (sim == null ? delay : simDelay)) setDelay(0); // its day is over
+  const ms = behind(), text = delayLine(ms, st), bar = $("#delayBar");
+  bar.hidden = !text; bar.classList.toggle("ahead", ms < 0);
+  // Written only when it changes, so the line isn't read out again every tick.
+  if ($("#delayText").textContent !== text) $("#delayText").textContent = text;
+}
+$("#onTrack").addEventListener("click", () => { setDelay(0); tick(); toast("Back on track"); });
 
 /* ---------- Weather: the Forecast at each stop's time, and the Warnings in force ---------- */
 const WEATHER = "trip-weather", WARNINGS = "trip-warnings";
@@ -146,11 +192,11 @@ const forecastFor = x => forecastForPoint(FORECASTS, x && x.weatherAt);
 const forecastHTML = (s, ms) => { const f = forecastAt(forecastFor(s), ms, Date.now()); return f ? `<span class="forecast">${iconHTML(f)}${esc(forecastText(f))}</span>` : ""; };
 /* Fills in the day's weather without drawing the day again, so a note being typed keeps its
    keyboard. The stop the family is at shows the weather now, as the now card does. */
-function applyWeather(st = tripState()) {
+function applyWeather() {
   const now = Date.now(), d = dayById(selDay), fc = forecastFor(d);
   document.querySelectorAll("#dayView li[data-stop-at]").forEach(li => {
     const s = d.stops.find(x => stopKey(d, x) === li.dataset.k);
-    const f = forecastAt(forecastFor(s), li.classList.contains("now") ? st.ms : +li.dataset.stopAt, now);
+    const f = forecastAt(forecastFor(s), li.classList.contains("now") ? clockMs() : +li.dataset.stopAt, now);
     const line = li.querySelector(".forecast"), icon = li.querySelector(".weather-icon");
     line.textContent = f ? forecastText(f) : ""; line.hidden = !f;
     icon.innerHTML = f ? iconHTML(f) : ""; icon.hidden = !icon.innerHTML;
@@ -220,7 +266,7 @@ const copyHTML = (d, s) => `<button type="button" class="copy" data-stop-line="$
 const markHTML = k => NEWS.marks[k] ? `<span class="chg ${NEWS.marks[k]}" data-changed="${esc(k)}">${NEWS.marks[k] === "new" ? "New" : "Updated"}</span>` : "";
 function timelineHTML(d) {
   return `<ol class="tl">${d.stops.map(s => `<li class="k-${esc(s.kind)}${s.problems.length ? " bad" : ""}" data-k="${esc(stopKey(d, s))}"${s.at != null ? ` data-stop-at="${s.at}"` : ""}>
-      <span class="time">${esc(s.time)}${s.at != null ? '<span class="weather-icon" hidden></span>' : ""}<span class="code">${esc(s.code)}</span>${copyHTML(d, s)}</span><span class="rail"><span class="node"></span></span>
+      <span class="time">${esc(s.time)}${s.at != null ? '<span class="weather-icon" hidden></span>' : ""}<span class="code">${esc(s.code)}</span>${copyHTML(d, s)}</span><span class="rail"><span class="node"></span>${s.at != null ? `<button type="button" class="here" hidden><span class="sr">We're at ${esc([s.code, s.title].filter(Boolean).join(" "))}</span></button>` : ""}</span>
       <div class="body"><span class="state" aria-live="polite"></span>${markHTML(stopKey(d, s))}${s.dayStart ? '<span class="startchip">Start here</span>' : ""}<h3>${esc(s.title || "(no name)")}</h3>${s.at != null ? '<span class="forecast" hidden></span>' : ""}
         ${s.problems.map(p => `<div class="badnote">Fix in the Sheet: ${esc(p)}</div>`).join("")}
         ${stopHTML(s)}
@@ -253,6 +299,7 @@ function renderDay() {
    ${note}
    ${booked}
    <p class="codehint folds">Each stop has a code like <span class="mono">D${d.n}-03</span>. Tap it to copy the stop, then paste it when you ask Gemini for a change.</p>
+   <p class="codehint folds" id="placeHint" hidden>Running late, or early? Tap the line beside the stops where you are.</p>
    ${d.stops.length ? timelineHTML(d) : `<div class="empty">No stops on this day yet.</div>`}
    <div class="card"><h3>My notes for ${esc(d.name)}</h3>
      <label for="dayNote" class="saved" style="min-height:0">Saved on this phone only.</label>
@@ -272,6 +319,8 @@ function foldOverview() {
   btn.setAttribute("aria-expanded", String(!folded));
 }
 function applyMarks(st = tripState()) {
+  const place = canPlace();
+  document.querySelectorAll("#dayView .here, #placeHint").forEach(el => { el.hidden = !place; });
   document.querySelectorAll("#dayView .g-item[data-goto]").forEach(g => {
     const { is } = CLOCK.mark(g.dataset.goto, st);
     g.classList.toggle("done", is === "done"); g.classList.toggle("now", is === "now" && fresh(st));
@@ -328,8 +377,8 @@ function renderNow(st = tripState()) {
     const sameDay = next && localDate(next.t) === localDate(ms);
     const heads = next ? (next.s.tip || next.s.wait || "") : "";
     const stop = stopHTML(cur.s);
-    box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(ms))} ${fmtClock(ms)}</span>${liveBtn}</div>
-      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3>${forecastHTML(cur.s, ms)}</div>
+    box.innerHTML = `<div class="now-head"><span class="livedot" aria-hidden="true"></span><span class="kicker">${sim ? "Preview" : "Now"} · ${esc(fmtDow(clockMs()))} ${fmtClock(clockMs())}</span>${liveBtn}</div>
+      ${isFresh ? `<div class="now-cur"><span class="mono code">${copyHTML(cur.d, cur.s)} · ${esc(cur.s.time)}</span>${markHTML(stopKey(cur.d, cur.s))}<h3 class="now-title">${esc(cur.s.title)}</h3>${forecastHTML(cur.s, clockMs())}</div>
       ${stop ? `<div class="now-stop">${stop}</div>` : ""}` : `<div class="now-cur"><span class="mono code">${esc(fd.name)} · ${esc(fd.dow)}, ${esc(fmtMonthDay(noon(fd.date)))}</span><h3 class="now-title">${esc(fd.title)}</h3></div>
       ${fd.bring.length ? `<div class="heads"><span class="lbl">Bring today</span><span>${esc(fd.bring.join(" · "))}</span></div>` : ""}`}
       ${next && isFresh ? `<div class="now-bar" role="progressbar" aria-label="Time until the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p * 100)}"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}
@@ -341,20 +390,20 @@ function renderNow(st = tripState()) {
       </div>` : `<p class="now-sub">That's the last stop of the trip.</p>`}
       <button type="button" class="btn" id="nowJump">Show in the day's plan</button>`;
   }
-  renderPill(st); watchSeen();
+  renderPill(st); renderDelay(st); watchSeen();
 }
 function renderPill(st) {
   const el = $("#countdown");
   el.hidden = st.phase === "empty";
   if (st.phase === "before") { const f = st.next; el.textContent = f.t - st.ms < 864e5 ? `Starts ${fmtClock(f.t)}` : `${until(f.t - st.ms).replace(/^in /, "")} to go`; el.disabled = true; }
   else if (st.phase === "after") { el.textContent = "Trip complete"; el.disabled = true; }
-  else if (st.phase === "during") { const label = fresh(st) ? st.cur.s.title : (st.next ? `${st.next.d.name} starts ${fmtClock(st.next.t)}` : st.cur.s.title); el.innerHTML = `<span class="pdot" aria-hidden="true"></span>${fmtClock(st.ms)} · ${esc(label)}`; el.disabled = false; }
+  else if (st.phase === "during") { const label = fresh(st) ? st.cur.s.title : (st.next ? `${st.next.d.name} starts ${fmtClock(st.next.t)}` : st.cur.s.title); el.innerHTML = `<span class="pdot" aria-hidden="true"></span>${fmtClock(clockMs())} · ${esc(label)}`; el.disabled = false; }
 }
 function tick() {
   if (!TRIP) return;
   const st = tripState();
   if (st.phase === "during" && autoDay && selDay !== focusDay(st).id) { selDay = focusDay(st).id; renderStrip(st); renderDay(); }
-  else { renderStrip(st); applyMarks(st); applyWeather(st); }
+  else { renderStrip(st); applyMarks(st); applyWeather(); }
   renderNow(st);
 }
 
@@ -373,7 +422,7 @@ function tzOffset(date) { // "+08:00" for the trip's time zone on that date
 $("#simGo").addEventListener("click", () => {
   const date = $("#simDay").value; if (!date) return;
   sim = Date.parse(`${date}T${$("#simTime").value || "10:00"}:00${tzOffset(date)}`);
-  autoDay = true; tick();
+  simDelay = null; autoDay = true; tick();
   // The tool is at the bottom of the page. Before or after the trip, the moment shows only in the
   // now card at the top.
   if (tripState().phase === "during") jumpToNow();
@@ -388,7 +437,7 @@ $("#nowCard").addEventListener("click", e => {
   const copy = e.target.closest("[data-stop-line]");
   if (copy) copyStop(copy.dataset.stopLine);
   else if (e.target.closest("#nowJump")) jumpToNow();
-  else if (e.target.closest("#simLive")) { sim = null; autoDay = true; tick(); toast("Back to the live clock"); }
+  else if (e.target.closest("#simLive")) { sim = null; simDelay = null; autoDay = true; tick(); toast("Back to the live clock"); }
 });
 $("#countdown").addEventListener("click", () => { jumpToNow(); });
 $("#dayView").addEventListener("change", e => {
@@ -402,6 +451,8 @@ $("#dayView").addEventListener("input", e => {
 $("#dayView").addEventListener("click", e => {
   const copy = e.target.closest("[data-stop-line]");
   if (copy) { copyStop(copy.dataset.stopLine); return; }
+  const here = e.target.closest(".here");
+  if (here) { placeAt(here.closest("li"), e.detail ? e.clientY : null); return; }
   if (e.target.closest("#overviewFold")) {
     overviewFolded = !overviewFolded; store.set(OVERVIEW_FOLDED, overviewFolded); foldOverview(); return;
   }
@@ -669,7 +720,7 @@ $("#setupForm").addEventListener("submit", e => {
 });
 $("#refresh").addEventListener("click", async () => { if (await load(store.get(LINK))) toast("Plan refreshed"); });
 // What came from the Sheet. The family's own ticks and notes stay.
-const dropSheet = () => [LINK, COPY, SEEN, WEATHER, WARNINGS].forEach(k => store.drop(k));
+const dropSheet = () => { [LINK, COPY, SEEN, WEATHER, WARNINGS, DELAY].forEach(k => store.drop(k)); delay = null; };
 $("#forget").addEventListener("click", () => {
   if (!confirm("Forget this Sheet on this phone? Your ticks and notes stay.")) return;
   dropSheet(); location.hash = ""; location.reload();
