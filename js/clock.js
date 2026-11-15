@@ -34,5 +34,27 @@ export function tripClock(days) {
     return { is: i === st.idx ? "now" : i === st.idx + 1 ? "next" : "", folds: false };
   }
 
-  return { at, mark };
+  // The moment p of the way from the stop with this key to the stop after it, as the day's plan
+  // draws the line between them. After a day's last stop the line runs overnight, so there p
+  // doesn't move it. It stays short of the next stop, which is "now" from its own time.
+  function momentIn(key, p) {
+    const i = order[key];
+    if (i == null) return null;
+    const cur = stops[i], next = stops[i + 1];
+    if (!next || next.d !== cur.d) return cur.t;
+    return Math.min(cur.t + p * (next.t - cur.t), Math.max(cur.t, next.t - 1000));
+  }
+
+  return { at, mark, momentIn };
+}
+
+// What the page says about a Delay of this many ms (less than 0 when ahead of the plan), with
+// where the family is by it. Under a minute says nothing.
+export function delayLine(behind, st) {
+  const m = Math.round(Math.abs(behind) / 60000);
+  if (!m) return "";
+  const span = m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`;
+  const stop = st.phase === "during" ? [st.cur.s.code, st.cur.s.title].filter(Boolean).join(" ") : "";
+  const at = stop ? ` at ${stop}` : "";
+  return behind > 0 ? `Delayed${at} for ${span}` : `Ahead${at} by ${span}`;
 }

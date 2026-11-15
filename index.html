@@ -117,6 +117,13 @@
   <p class="driver-address" id="driverAddress"></p>
   <button type="button" class="btn primary" id="driverClose">Close</button>
 </dialog>
+<!-- DELAY: shown while the family is behind the plan, or ahead of it -->
+<div class="delaybar" id="delayBar" hidden>
+  <div class="wrap">
+    <p id="delayText" role="status"></p>
+    <button type="button" class="btn" id="onTrack">Back on track</button>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" hidden></div>
 <script type="module" src="js/app.js"></script>
 </body>
