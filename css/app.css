@@ -281,6 +281,10 @@ details.sim summary{cursor:pointer;color:var(--muted);font-weight:700;min-height
 .tl li.now .rail::after{content:"";position:absolute;left:8px;top:6px;width:2px;height:calc(var(--p,0) * (100% - 6px));background:var(--accent)}
 .tl li.now .body{background:var(--accent-soft);border-radius:12px;padding:10px 12px 14px;margin-bottom:14px}
 .tl li.next .node{border-width:3px}
+/* Today's line beside the stops: a tap on it says where the family is. Its tap area takes in the
+   gaps on each side, and sits over a folded stop's button. */
+.tl .here{position:absolute;inset:0 -8px;z-index:1;padding:0;border:0;border-radius:9px;background:none;cursor:pointer}
+@media (hover:hover){.tl .here:hover{background:color-mix(in srgb,var(--accent) 14%,transparent)}}
 /* A done stop folds to its time, code and name. Its name is the button that opens it, and a folded
    row is tappable all over. The button's height spills into the gaps, so the row keeps its size. */
 .tl .fold{display:flex;align-items:center;gap:8px;width:100%;min-height:var(--tap);margin-block:calc((var(--tap) - 1lh) / -2);padding:0;border:0;background:none;text-align:left;cursor:pointer}
@@ -367,3 +371,13 @@ details.sim summary{cursor:pointer;color:var(--muted);font-weight:700;min-height
 .changed{margin:0 0 18px;font-size:.9rem;font-weight:700;background:var(--tip-bg);color:var(--tip-ink);border-left:4px solid var(--tip-edge);border-radius:8px;padding:8px 12px}
 .chg{align-self:flex-start;font-family:var(--f-mono);font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:5px;background:var(--tip-bg);color:var(--tip-ink)}
 .chg.new{background:var(--ok-bg);color:var(--ok-ink)}
+
+/* Delay: where the family is against the plan. It stays at the foot of the screen while set, and
+   the page and the toast make room for it. */
+.delaybar{position:fixed;inset:auto 0 0;z-index:15;background:var(--warn-bg);color:var(--warn-ink);border-top:1px solid color-mix(in srgb,currentColor 25%,transparent);padding-bottom:env(safe-area-inset-bottom,0px)}
+.delaybar.ahead{background:var(--ok-bg);color:var(--ok-ink)}
+.delaybar .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
+.delaybar p{margin:0;flex:1;min-width:0;font-weight:700;font-size:.92rem;line-height:1.3;overflow-wrap:anywhere}
+.delaybar .btn{flex:none;color:var(--ink)}
+body:has(.delaybar:not([hidden])) main{padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+body:has(.delaybar:not([hidden])) .toast{bottom:calc(80px + env(safe-area-inset-bottom,0px))}

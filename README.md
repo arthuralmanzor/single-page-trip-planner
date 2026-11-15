@@ -100,6 +100,10 @@ Each stop has a code like D3-05, shown beside it on the site. Using it makes a r
 Tap the code to copy the stop as one line, like "D3-05, Peak Tram up, Day 3 at 16:45", and
 paste it into the chat.
 
+Running late, or early? Tap the line beside today's stops where you are. The page then follows
+the plan from there, says "Delayed at D3-05 Peak Tram up for 10 min", and leaves the plan's times
+as they are. "Back on track" goes back to the clock. Only that phone sees it.
+
 ## Keep private details private
 
 Anyone with a shared Sheet's link can read it. The link from "Share with family" carries the
@@ -116,7 +120,8 @@ Plain HTML, CSS and JavaScript modules. No framework, no build step, no dependen
     npm test
 
 - `js/plan.js` and `js/reference.js` turn the Sheets' text into what the page shows.
-  `js/clock.js` works out where you should be at a moment, and which stops are done by then.
+  `js/clock.js` works out where you should be at a moment, which stops are done by then, and
+  what a Delay says.
   `js/changes.js` works out which stops changed since the phone last showed them. The tests cover
   all four.
 - `js/app.js` draws the page. `js/sheets.js` fetches the tabs, and makes and reads the family

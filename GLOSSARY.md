@@ -29,6 +29,12 @@ The card at the top of the plan that shows where the family should be now and wh
 shows the current Stop in full, so whatever a Stop shows or does in the day's plan, it does there
 too.
 
+**Delay**:
+How far the family is behind the Plan, or ahead of it, set on one phone by tapping where they are
+in today's plan. The page shows where they are and what's next by it, and the Stops keep their
+times. It lasts until "Back on track", or the end of that day.
+_Avoid_: offset, lag, running late
+
 **Day overview**:
 The top of a Day's plan, before its Stops: its short plan, what to bring, its note and what's
 booked.
