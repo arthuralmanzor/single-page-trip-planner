@@ -78,6 +78,45 @@ export function dayForecast(fc, from, to, now) {
 export const forecastText = f => `${Math.round(f.temp)}°${f.rain == null ? "" : ` · ${f.rain}% rain`}`;
 export const dayForecastText = day => `${Math.round(day.low)}° to ${Math.round(day.high)}°${day.rain == null ? "" : ` · rain up to ${day.rain}%`}`;
 
+// The Hong Kong Observatory's 9-day forecast, one entry a day for Hong Kong as a whole.
+export const OBSERVATORY_FORECAST_URL = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en";
+
+const isoDate = d => `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+const dayBefore = date => new Date(Date.parse(`${date}T00:00:00Z`) - 24 * HOUR).toISOString().slice(0, 10);
+
+// What the page keeps of the Observatory's answer: each day by its date, with its low, its high,
+// its chance of significant rain (Low to High) and its weather in words. An answer from the
+// afternoon starts at tomorrow, so today's entry is kept from the last answer that had it.
+export function readObservatoryForecast(json, fetchedAt, old) {
+  const list = json && json.weatherForecast;
+  if (!Array.isArray(list)) return null;
+  const days = {};
+  for (const f of list) {
+    const low = f && f.forecastMintemp && f.forecastMintemp.value, high = f && f.forecastMaxtemp && f.forecastMaxtemp.value;
+    if (!/^\d{8}$/.test(f && f.forecastDate) || typeof low !== "number" || typeof high !== "number") continue;
+    days[isoDate(f.forecastDate)] = { low, high, rain: typeof f.PSR === "string" ? f.PSR : null, weather: typeof f.forecastWeather === "string" ? f.forecastWeather : "" };
+  }
+  const first = Object.keys(days).sort()[0];
+  if (!first) return null;
+  const before = dayBefore(first);
+  if (old && old.days && old.days[before]) days[before] = old.days[before];
+  return { fetchedAt, days };
+}
+
+// On a Hong Kong trip, the Observatory forecast covers each Day at the Trip tab's point. A Day
+// with a point of its own is spent in another city, like Macau.
+export function observatoryDay(ofc, trip, day, now) {
+  if (!usable(ofc, now) || trip.timeZone !== "Asia/Hong_Kong" || !day.weatherAt || !trip.weatherAt || !samePoint(day.weatherAt, trip.weatherAt)) return null;
+  return ofc.days[day.date] || null;
+}
+
+// The day header's two lines: the low and the high with the chance of significant rain, which
+// the Observatory counts as 10 mm or more across Hong Kong that day, then its own words.
+export function observatoryLines(o) {
+  const rain = o.rain ? ` · ${o.rain.toLowerCase().replace(/ /g, "-")} chance of significant rain` : "";
+  return [`${o.low}° to ${o.high}°${rain}`, o.weather];
+}
+
 // The Hong Kong Observatory's warning summary. Its server turns away a request with headers of its
 // own, so the page fetches it plainly.
 export const WARNINGS_URL = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en";
