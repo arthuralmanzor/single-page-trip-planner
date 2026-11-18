@@ -79,6 +79,13 @@ The sky, temperature and chance of rain expected at a Stop's time, or across a D
 Stop's map point: its own, or else its Day's, or else the trip's. Not part of the Plan.
 _Avoid_: weather report, conditions
 
+**Observatory forecast**:
+The Hong Kong Observatory's forecast for a whole Day in Hong Kong. It gives the low and high, the
+chance of significant rain (10 mm or more across Hong Kong), and the weather in its own words. On a
+Hong Kong trip it takes the place of the Forecast across a Day's stops, on each Day at the trip's
+map point. Each Stop keeps its own Forecast.
+_Avoid_: 9-day forecast, outlook
+
 **Warning**:
 A rainstorm or typhoon warning signal the Hong Kong Observatory has in force now. One can change a
 Day's plan within the hour. A typhoon warning keeps the Observatory's name, like Typhoon signal 8.

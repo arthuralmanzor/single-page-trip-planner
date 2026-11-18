@@ -4,7 +4,7 @@ import { shownStops, changesSince, changeLine } from "./changes.js";
 import { readChecklists, readPharmacy, readInfo } from "./reference.js";
 import { sheetId, fetchTabs, familyLink, sheetFromFamilyLink } from "./sheets.js";
 import { swipedDay } from "./swipe.js";
-import { refreshForecasts, forecastForPoint, forecastAt, forecastText, dayForecast, dayForecastText, forecastIcon, asOf, WARNINGS_URL, readWarnings, hasWarnings, warningsAt } from "./weather.js";
+import { refreshForecasts, forecastForPoint, forecastAt, forecastText, dayForecast, dayForecastText, forecastIcon, asOf, WARNINGS_URL, readWarnings, hasWarnings, warningsAt, OBSERVATORY_FORECAST_URL, readObservatoryForecast, observatoryDay, observatoryLines } from "./weather.js";
 
 /* ---------- Helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -144,9 +144,9 @@ function renderDelay(st) {
 $("#onTrack").addEventListener("click", () => { setDelay(0); tick(); toast("Back on track"); });
 
 /* ---------- Weather: the Forecast at each stop's time, and the Warnings in force ---------- */
-const WEATHER = "trip-weather", WARNINGS = "trip-warnings";
+const WEATHER = "trip-weather", WARNINGS = "trip-warnings", OBSERVATORY = "trip-observatory";
 // One forecast for each day's point. A phone saved a single forecast before days had points.
-let FORECASTS = [].concat(store.get(WEATHER) || []), IN_FORCE = store.get(WARNINGS);
+let FORECASTS = [].concat(store.get(WEATHER) || []), IN_FORCE = store.get(WARNINGS), OBS_FORECAST = store.get(OBSERVATORY);
 // A feed that never answers would hold the next check up, so each fetch gives up after 15 seconds.
 async function getJSON(url) {
   const stop = new AbortController(), t = setTimeout(() => stop.abort(), 15000);
@@ -163,10 +163,14 @@ async function loadWeather() {
   try {
     FORECASTS = await refreshForecasts(FORECASTS, DAYS, Date.now(), getJSON);
     if (FORECASTS.length) store.set(WEATHER, FORECASTS); else store.drop(WEATHER);
-    if (!hasWarnings(TRIP, DAYS)) { IN_FORCE = null; store.drop(WARNINGS); }
-    else {
-      try { IN_FORCE = readWarnings(await getJSON(WARNINGS_URL), Date.now()); store.set(WARNINGS, IN_FORCE); } catch (e) {}
-    }
+    if (!hasWarnings(TRIP, DAYS)) { IN_FORCE = OBS_FORECAST = null; store.drop(WARNINGS); store.drop(OBSERVATORY); }
+    else await Promise.all([
+      getJSON(WARNINGS_URL).then(json => { IN_FORCE = readWarnings(json, Date.now()); store.set(WARNINGS, IN_FORCE); }).catch(() => {}),
+      getJSON(OBSERVATORY_FORECAST_URL).then(json => {
+        OBS_FORECAST = readObservatoryForecast(json, Date.now(), OBS_FORECAST) || OBS_FORECAST;
+        if (OBS_FORECAST) store.set(OBSERVATORY, OBS_FORECAST);
+      }).catch(() => {}),
+    ]);
   } finally { weatherBusy = false; }
   applyWeather(); renderNow();
 }
@@ -203,8 +207,12 @@ function applyWeather() {
   });
   const day = $("#dayView .day-forecast");
   if (day) {
-    const f = dayForecast(fc, +day.dataset.firstStopAt, +day.dataset.lastStopAt, now), old = asOf(fc, now);
-    day.textContent = f ? dayForecastText(f) + (old ? ` · as of ${savedWhen(old)}` : "") : ""; day.hidden = !f;
+    // On a Hong Kong day the Observatory's forecast for the day goes first, and the feed's covers the rest.
+    const o = observatoryDay(OBS_FORECAST, TRIP, d, now), f = o ? null : dayForecast(fc, +day.dataset.firstStopAt, +day.dataset.lastStopAt, now);
+    const old = asOf(o ? OBS_FORECAST : fc, now), stamp = old ? ` · as of ${savedWhen(old)}` : "";
+    if (o) { const [numbers, words] = observatoryLines(o); day.textContent = numbers + stamp + (words ? `\n${words}` : ""); }
+    else day.textContent = f ? dayForecastText(f) + stamp : "";
+    day.hidden = !o && !f;
   }
   const list = warningsAt(IN_FORCE, now), box = $("#warnings");
   box.hidden = !list.length;
@@ -721,7 +729,7 @@ $("#setupForm").addEventListener("submit", e => {
 });
 $("#refresh").addEventListener("click", async () => { if (await load(store.get(LINK))) toast("Plan refreshed"); });
 // What came from the Sheet. The family's own ticks and notes stay.
-const dropSheet = () => { [LINK, COPY, SEEN, WEATHER, WARNINGS, DELAY].forEach(k => store.drop(k)); delay = null; };
+const dropSheet = () => { [LINK, COPY, SEEN, WEATHER, WARNINGS, OBSERVATORY, DELAY].forEach(k => store.drop(k)); delay = null; };
 $("#forget").addEventListener("click", () => {
   if (!confirm("Forget this Sheet on this phone? Your ticks and notes stay.")) return;
   dropSheet(); location.hash = ""; location.reload();

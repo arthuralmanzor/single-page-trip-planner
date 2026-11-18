@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readForecast, refreshForecasts, forecastForPoint, forecastAt, forecastText, dayForecast, dayForecastText, readWarnings, warningsAt, asOf, hasWarnings, forecastIcon } from "../js/weather.js";
+import { readForecast, refreshForecasts, forecastForPoint, forecastAt, forecastText, dayForecast, dayForecastText, readWarnings, warningsAt, asOf, hasWarnings, forecastIcon, readObservatoryForecast, observatoryDay, observatoryLines } from "../js/weather.js";
 
 const hk = hhmm => Date.parse(`2027-11-18T${hhmm}:00+08:00`);
 const POINT = { lat: 22.3, lon: 114.17 };
@@ -175,4 +175,50 @@ test("33° and up shows very hot, and 12° and down shows cold", () => {
   assert.equal(forecastIcon({ temp: 32.4, rain: 0, code: 0, day: true }), "sun");
   assert.equal(forecastIcon({ temp: 12, rain: 0, code: 3, day: false }), "cold");
   assert.equal(forecastIcon({ temp: 12.6, rain: 0, code: 3, day: false }), "cloud");
+});
+
+// The Observatory's 9-day forecast. Each entry carries more than the page reads.
+const fnd = (...days) => ({ generalSituation: "A cold front will cross the coast.", weatherForecast: days.map(([date, low, high, psr, words]) => ({
+  forecastDate: date.replace(/-/g, ""), week: "Thursday", forecastWind: "North force 4.", forecastWeather: words,
+  forecastMaxtemp: { value: high, unit: "C" }, forecastMintemp: { value: low, unit: "C" }, ForecastIcon: 54, PSR: psr,
+})) });
+const HK_TRIP = { timeZone: "Asia/Hong_Kong", weatherAt: POINT };
+const hkDay = date => ({ date, weatherAt: HK_TRIP.weatherAt });
+
+test("a Hong Kong day's header shows the Observatory's low, high, chance of significant rain and words", () => {
+  const ofc = readObservatoryForecast(fnd(["2027-11-18", 21, 27, "Low", "Mainly cloudy. One or two rain patches later."], ["2027-11-19", 18, 22, "Medium High", "Cooler."]), hk("09:00"));
+  assert.deepEqual(observatoryLines(observatoryDay(ofc, HK_TRIP, hkDay("2027-11-18"), hk("09:05"))), ["21° to 27° · low chance of significant rain", "Mainly cloudy. One or two rain patches later."]);
+  assert.deepEqual(observatoryLines(observatoryDay(ofc, HK_TRIP, hkDay("2027-11-19"), hk("09:05"))), ["18° to 22° · medium-high chance of significant rain", "Cooler."]);
+  assert.equal(observatoryDay(ofc, HK_TRIP, hkDay("2027-11-30"), hk("09:05")), null);
+  assert.deepEqual(observatoryLines({ low: 21, high: 27, rain: null, weather: "" }), ["21° to 27°", ""]);
+});
+
+test("the Observatory forecast covers only a Hong Kong trip's days at the trip's point", () => {
+  const ofc = readObservatoryForecast(fnd(["2027-11-18", 21, 27, "Low", "Fine."]), hk("09:00"));
+  // A day with a point of its own is spent in another city, here Macau.
+  assert.equal(observatoryDay(ofc, HK_TRIP, { date: "2027-11-18", weatherAt: { lat: 22.2, lon: 113.55 } }, hk("09:05")), null);
+  assert.notEqual(observatoryDay(ofc, HK_TRIP, { date: "2027-11-18", weatherAt: { ...POINT } }, hk("09:05")), null);
+  assert.equal(observatoryDay(ofc, { timeZone: "Asia/Tokyo", weatherAt: POINT }, hkDay("2027-11-18"), hk("09:05")), null);
+  assert.equal(observatoryDay(ofc, { timeZone: "Asia/Hong_Kong", weatherAt: null }, { date: "2027-11-18", weatherAt: null }, hk("09:05")), null);
+});
+
+test("today's Observatory forecast stays once the afternoon's answer starts at tomorrow", () => {
+  const dayEarlier = 24 * 3600e3;
+  const morning17 = readObservatoryForecast(fnd(["2027-11-17", 19, 24, "Low", "Sunny."], ["2027-11-18", 21, 27, "Low", "Cloudy."]), hk("09:00") - dayEarlier);
+  const afternoon17 = readObservatoryForecast(fnd(["2027-11-18", 21, 26, "Low", "Mainly cloudy."], ["2027-11-19", 18, 22, "Low", "Cooler."]), hk("16:30") - dayEarlier, morning17);
+  const afternoon18 = readObservatoryForecast(fnd(["2027-11-19", 17, 21, "Medium", "Cooler with rain."]), hk("16:30"), afternoon17);
+  assert.deepEqual(Object.keys(afternoon17.days).sort(), ["2027-11-17", "2027-11-18", "2027-11-19"]);
+  assert.deepEqual(Object.keys(afternoon18.days).sort(), ["2027-11-18", "2027-11-19"]);
+  assert.equal(observatoryDay(afternoon18, HK_TRIP, hkDay("2027-11-18"), hk("16:35")).high, 26);
+  assert.equal(observatoryDay(afternoon18, HK_TRIP, hkDay("2027-11-19"), hk("16:35")).rain, "Medium");
+});
+
+test("an Observatory answer that isn't a forecast is ignored, and one more than half a day old shows none", () => {
+  assert.equal(readObservatoryForecast({ error: "busy" }, hk("09:00")), null);
+  assert.equal(readObservatoryForecast(null, hk("09:00")), null);
+  assert.equal(readObservatoryForecast({ weatherForecast: [{ forecastDate: "20271118" }] }, hk("09:00")), null);
+  const ofc = readObservatoryForecast(fnd(["2027-11-18", 21, 27, "Low", "Fine."]), hk("09:00"));
+  assert.notEqual(observatoryDay(ofc, HK_TRIP, hkDay("2027-11-18"), hk("21:00")), null);
+  assert.equal(observatoryDay(ofc, HK_TRIP, hkDay("2027-11-18"), hk("21:01")), null);
+  assert.equal(observatoryDay(null, HK_TRIP, hkDay("2027-11-18"), hk("09:00")), null);
 });

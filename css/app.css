@@ -117,7 +117,7 @@ ol.tl li{display:grid;grid-template-columns:62px 18px minmax(0,1fr);column-gap:8
 .tl p,.now-stop p{margin:0;color:var(--muted)}
 /* Weather: a stop's Forecast under its name, the day's under its title. A done stop shows none. */
 .forecast{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
-.day-forecast{margin:0;color:var(--muted);font-variant-numeric:tabular-nums}
+.day-forecast{margin:0;color:var(--muted);font-variant-numeric:tabular-nums;white-space:pre-line}
 .tl li.done .forecast,.tl li.done .weather-icon{display:none}
 /* The icon sits under the stop's time, since a forecast is for a time. */
 .weather-icon{display:flex;justify-content:flex-end;margin-top:4px;color:var(--ink)}
